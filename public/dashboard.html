@@ -87,6 +87,102 @@
             </div>
         </div>
         
+        <!-- NEW: Threat Modeler Panel -->
+        <div class="modeler-container">
+            <div class="modeler-header">
+                <h2><i class="fas fa-flask"></i> Predictive Threat Modeler</h2>
+                <p class="modeler-subtitle">Build hypothetical malware and predict how mAIware would classify it</p>
+            </div>
+            
+            <div class="modeler-grid">
+                <div class="modeler-builder">
+                    <h3><i class="fas fa-cogs"></i> Threat Configuration</h3>
+                    
+                    <div class="modeler-field">
+                        <label>File Type</label>
+                        <select id="model-filetype" class="modeler-select">
+                            <option>PE32+ (GUI) x86-64</option>
+                            <option>PE32 (Console) Intel 80386</option>
+                            <option>PE32+ DLL x86-64</option>
+                            <option>MSI Installer</option>
+                            <option>PDF Document</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modeler-field">
+                        <label>Packer/Obfuscator</label>
+                        <select id="model-packer" class="modeler-select">
+                            <option>None</option>
+                            <option>UPX</option>
+                            <option>VMProtect</option>
+                            <option>Themida</option>
+                            <option>ASPack</option>
+                            <option>Unknown (High Entropy)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modeler-field">
+                        <label>Digital Signature</label>
+                        <select id="model-signature" class="modeler-select">
+                            <option>Verified (Microsoft Corporation)</option>
+                            <option>Verified (Google LLC)</option>
+                            <option>Verified (Unknown Publisher)</option>
+                            <option>Not Signed</option>
+                            <option>Expired Certificate</option>
+                            <option>Self-Signed (Untrusted)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modeler-field">
+                        <label>API Imports (select multiple)</label>
+                        <select id="model-apis" class="modeler-select" multiple size="6">
+                            <option>CreateRemoteThread</option>
+                            <option>WriteProcessMemory</option>
+                            <option>VirtualAllocEx</option>
+                            <option>SetWindowsHookExW</option>
+                            <option>URLDownloadToFileW</option>
+                            <option>WinExec</option>
+                            <option>RegSetValueExW</option>
+                            <option>CryptEncrypt</option>
+                            <option>Socket</option>
+                            <option>ReadFile</option>
+                        </select>
+                        <small class="modeler-hint">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                    
+                    <div class="modeler-field">
+                        <label>Suspicious Strings (select multiple)</label>
+                        <select id="model-strings" class="modeler-select" multiple size="6">
+                            <option>http://bad-c2-server.com/payload.dat</option>
+                            <option>keylog.txt</option>
+                            <option>steal_passwords</option>
+                            <option>powershell -enc</option>
+                            <option>vssadmin.exe delete shadows</option>
+                            <option>HOW_TO_DECRYPT.txt</option>
+                            <option>crack</option>
+                            <option>patch</option>
+                            <option>disable_antivirus</option>
+                        </select>
+                        <small class="modeler-hint">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                    
+                    <button class="modeler-analyze-btn" onclick="analyzeThreatModel()">
+                        <i class="fas fa-brain"></i> ANALYZE THREAT
+                    </button>
+                </div>
+                
+                <div class="modeler-results">
+                    <h3><i class="fas fa-chart-line"></i> Prediction Results</h3>
+                    <div id="modeler-output" class="modeler-output">
+                        <div class="modeler-placeholder">
+                            <i class="fas fa-arrow-left"></i>
+                            <p>Configure a threat profile and click ANALYZE to see predictions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="scans-container">
             <div class="scans-header">
                 <h2>Recent Scans</h2>
@@ -627,6 +723,145 @@
                 
             } catch (error) {
                 console.error('Failed to load emerging threats:', error);
+            }
+        }
+        
+        async function analyzeThreatModel() {
+            try {
+                // Get selected values
+                const fileType = document.getElementById('model-filetype').value;
+                const packer = document.getElementById('model-packer').value;
+                const signature = document.getElementById('model-signature').value;
+                
+                // Get multiple selections
+                const apisSelect = document.getElementById('model-apis');
+                const apiImports = Array.from(apisSelect.selectedOptions).map(opt => opt.value);
+                
+                const stringsSelect = document.getElementById('model-strings');
+                const keyStrings = Array.from(stringsSelect.selectedOptions).map(opt => opt.value);
+                
+                // Validate
+                if (apiImports.length === 0) {
+                    alert('Please select at least one API import');
+                    return;
+                }
+                if (keyStrings.length === 0) {
+                    alert('Please select at least one suspicious string');
+                    return;
+                }
+                
+                // Show loading state
+                const outputDiv = document.getElementById('modeler-output');
+                outputDiv.innerHTML = `
+                    <div class="modeler-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Analyzing threat profile...</p>
+                    </div>
+                `;
+                
+                // Send to server
+                const response = await fetch('/api/threat-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fileType,
+                        packer,
+                        signature,
+                        apiImports,
+                        keyStrings
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = data.result;
+                    const classColor = 
+                        result.classification === 'Malware' ? '#ff4757' :
+                        result.classification === 'Suspicious' ? '#ffa502' : '#26de81';
+                    
+                    outputDiv.innerHTML = `
+                        <div class="prediction-result">
+                            <div class="prediction-header">
+                                <div class="prediction-badge" style="background: ${classColor};">
+                                    ${result.classification.toUpperCase()}
+                                </div>
+                                <div class="prediction-confidence">
+                                    <div class="confidence-label">Confidence Score</div>
+                                    <div class="confidence-value">${(parseFloat(result.confidence_score) * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                            
+                            ${result.malware_family ? `
+                                <div class="prediction-family">
+                                    <strong>Predicted Malware Family:</strong>
+                                    <span class="family-name">${result.malware_family}</span>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="prediction-section">
+                                <h4>Threat Analysis</h4>
+                                <div class="analysis-item">
+                                    <i class="fas fa-file"></i>
+                                    <span><strong>File Type:</strong> ${result.key_findings.file_type}</span>
+                                </div>
+                                <div class="analysis-item">
+                                    <i class="fas fa-box"></i>
+                                    <span><strong>Packer:</strong> ${result.key_findings.packer_detected}</span>
+                                </div>
+                                <div class="analysis-item">
+                                    <i class="fas fa-certificate"></i>
+                                    <span><strong>Signature:</strong> ${result.key_findings.signature.name}</span>
+                                </div>
+                                <div class="analysis-item">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span><strong>Threat Score:</strong> ${result.key_findings.threat_score}/100</span>
+                                </div>
+                            </div>
+                            
+                            <div class="prediction-section">
+                                <h4>Detected Indicators</h4>
+                                <div class="indicator-group">
+                                    <strong>API Imports:</strong>
+                                    <div class="indicator-list">
+                                        ${result.key_findings.api_imports.map(api => 
+                                            `<span class="indicator-tag api-tag">${api}</span>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                                <div class="indicator-group">
+                                    <strong>Suspicious Strings:</strong>
+                                    <div class="indicator-list">
+                                        ${result.key_findings.key_strings.map(str => 
+                                            `<span class="indicator-tag string-tag">${str}</span>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="prediction-footer">
+                                <i class="fas fa-info-circle"></i>
+                                This analysis has been added to the scan results and will appear in all visualizations.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    outputDiv.innerHTML = `
+                        <div class="modeler-error">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Analysis failed: ${data.error}</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Failed to analyze threat model:', error);
+                document.getElementById('modeler-output').innerHTML = `
+                    <div class="modeler-error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Analysis failed. Please try again.</p>
+                    </div>
+                `;
             }
         }
         

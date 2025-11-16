@@ -242,6 +242,316 @@ h1 {
     font-style: italic;
 }
 
+/* Threat Modeler */
+.modeler-container {
+    background: linear-gradient(135deg, rgba(90, 156, 248, 0.1) 0%, rgba(38, 222, 129, 0.1) 100%);
+    border: 2px solid rgba(90, 156, 248, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 3rem;
+    box-shadow: 0 4px 16px rgba(90, 156, 248, 0.2);
+}
+
+.modeler-header {
+    margin-bottom: 24px;
+}
+
+.modeler-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.8rem;
+    color: #5a9cf8;
+}
+
+.modeler-header h2 i {
+    color: #26de81;
+    margin-right: 10px;
+}
+
+.modeler-subtitle {
+    color: #b0b0b0;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.modeler-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .modeler-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.modeler-builder,
+.modeler-results {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.modeler-builder h3,
+.modeler-results h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.2rem;
+    color: #e0e0e0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.modeler-builder h3 i {
+    color: #26de81;
+    margin-right: 8px;
+}
+
+.modeler-results h3 i {
+    color: #5a9cf8;
+    margin-right: 8px;
+}
+
+.modeler-field {
+    margin-bottom: 20px;
+}
+
+.modeler-field label {
+    display: block;
+    color: #b0b0b0;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.modeler-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 10px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modeler-select:focus {
+    outline: none;
+    border-color: #5a9cf8;
+    background: rgba(90, 156, 248, 0.1);
+}
+
+.modeler-select option {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 8px;
+}
+
+.modeler-hint {
+    display: block;
+    color: #666;
+    font-size: 0.75rem;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.modeler-analyze-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #26de81, #20bf6b);
+    border: none;
+    color: #fff;
+    padding: 14px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(38, 222, 129, 0.3);
+}
+
+.modeler-analyze-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(38, 222, 129, 0.4);
+}
+
+.modeler-analyze-btn i {
+    margin-right: 8px;
+}
+
+.modeler-output {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modeler-placeholder {
+    text-align: center;
+    color: #666;
+}
+
+.modeler-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.modeler-placeholder p {
+    font-size: 0.95rem;
+}
+
+.modeler-loading {
+    text-align: center;
+    color: #5a9cf8;
+}
+
+.modeler-loading i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+.modeler-error {
+    text-align: center;
+    color: #ff4757;
+}
+
+.modeler-error i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+.prediction-result {
+    width: 100%;
+}
+
+.prediction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.prediction-badge {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.prediction-confidence {
+    text-align: right;
+}
+
+.confidence-label {
+    color: #888;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.confidence-value {
+    color: #5a9cf8;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.prediction-family {
+    padding: 16px;
+    background: rgba(255, 71, 87, 0.1);
+    border-left: 4px solid #ff4757;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    color: #e0e0e0;
+}
+
+.family-name {
+    color: #ff6b6b;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-left: 8px;
+}
+
+.prediction-section {
+    margin-bottom: 20px;
+}
+
+.prediction-section h4 {
+    color: #5a9cf8;
+    font-size: 1rem;
+    margin: 0 0 12px 0;
+    border-bottom: 1px solid rgba(90, 156, 248, 0.3);
+    padding-bottom: 6px;
+}
+
+.analysis-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    color: #b0b0b0;
+    font-size: 0.9rem;
+}
+
+.analysis-item i {
+    color: #ffa502;
+    width: 20px;
+}
+
+.indicator-group {
+    margin-bottom: 16px;
+}
+
+.indicator-group strong {
+    display: block;
+    color: #e0e0e0;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.indicator-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.indicator-tag {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.api-tag {
+    background: rgba(255, 165, 2, 0.2);
+    border: 1px solid rgba(255, 165, 2, 0.4);
+    color: #ffa502;
+}
+
+.string-tag {
+    background: rgba(255, 71, 87, 0.2);
+    border: 1px solid rgba(255, 71, 87, 0.4);
+    color: #ff6b6b;
+}
+
+.prediction-footer {
+    margin-top: 20px;
+    padding: 12px;
+    background: rgba(90, 156, 248, 0.1);
+    border-radius: 6px;
+    color: #5a9cf8;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .stat-card {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);

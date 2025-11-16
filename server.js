@@ -654,6 +654,135 @@ app.get('/api/emerging-threats', (req, res) => {
     }
 });
 
+// Threat Modeler - Simulate analysis of hypothetical malware
+app.post('/api/threat-model', (req, res) => {
+    try {
+        const { fileType, packer, signature, apiImports, keyStrings } = req.body;
+        
+        // Validate inputs
+        if (!fileType || !packer || !signature || !apiImports || !keyStrings) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+        
+        // Create a synthetic scan result based on the threat profile
+        const crypto = require('crypto');
+        const timestamp = Date.now();
+        const randomHash = crypto.randomBytes(32).toString('hex');
+        
+        // Determine classification based on threat indicators
+        let classification = 'Benign';
+        let confidence = 0.55;
+        let malwareFamily = null;
+        
+        // Scoring system
+        let threatScore = 0;
+        
+        // Packer increases threat score
+        if (packer !== 'None') threatScore += 25;
+        
+        // Signature evaluation
+        if (signature.includes('Not Signed') || signature.includes('Self-Signed')) {
+            threatScore += 20;
+        }
+        
+        // API analysis - check for malicious APIs
+        const maliciousAPIs = ['CreateRemoteThread', 'WriteProcessMemory', 'VirtualAllocEx', 
+                               'SetWindowsHookExW', 'URLDownloadToFileW', 'NtInjectThread'];
+        const maliciousAPICount = apiImports.filter(api => 
+            maliciousAPIs.some(mal => api.includes(mal))
+        ).length;
+        threatScore += maliciousAPICount * 15;
+        
+        // String analysis - check for malicious strings
+        const maliciousKeywords = ['keylog', 'steal', 'crack', 'patch', 'disable', 
+                                   'powershell', 'encrypted', 'ransom', 'payload'];
+        const maliciousStringCount = keyStrings.filter(str => 
+            maliciousKeywords.some(keyword => str.toLowerCase().includes(keyword))
+        ).length;
+        threatScore += maliciousStringCount * 20;
+        
+        // Determine classification
+        if (threatScore >= 60) {
+            classification = 'Malware';
+            confidence = 0.85 + (Math.min(threatScore, 100) / 100) * 0.14;
+            
+            // Assign malware family based on characteristics
+            if (keyStrings.some(s => s.toLowerCase().includes('keylog'))) {
+                malwareFamily = 'Spyware.Win32.Keylogger';
+            } else if (apiImports.includes('CreateRemoteThread') || apiImports.includes('WriteProcessMemory')) {
+                malwareFamily = 'Trojan.Downloader.Win32';
+            } else if (keyStrings.some(s => s.toLowerCase().includes('encrypt') || s.toLowerCase().includes('ransom'))) {
+                malwareFamily = 'Ransomware.Win32.Locky';
+            } else if (apiImports.includes('URLDownloadToFileW')) {
+                malwareFamily = 'Dropper.Win32.Emotet';
+            } else {
+                malwareFamily = 'Masquerader.Win32.Agent';
+            }
+        } else if (threatScore >= 30) {
+            classification = 'Suspicious';
+            confidence = 0.65 + (threatScore / 100) * 0.25;
+        } else {
+            classification = 'Benign';
+            confidence = 0.55 + Math.random() * 0.25;
+        }
+        
+        // Build the synthetic scan result
+        const syntheticScan = {
+            detected_filename: `threat_model_${timestamp}.exe`,
+            file_hashes: {
+                sha256: randomHash,
+                md5: crypto.createHash('md5').update(randomHash).digest('hex')
+            },
+            classification,
+            malware_family: malwareFamily,
+            confidence_score: confidence.toFixed(2),
+            vendor: { name: 'mAIware Threat Modeler', icon: 'fas fa-flask' },
+            key_findings: {
+                file_type: fileType,
+                packer_detected: packer,
+                signature: { 
+                    name: signature, 
+                    icon: signature.includes('Verified') ? 'fas fa-check-shield' : 'fas fa-times-circle',
+                    level: signature.includes('Verified') ? 'verified' : 'untrusted'
+                },
+                api_imports: apiImports,
+                key_strings: keyStrings,
+                threat_score: threatScore
+            },
+            serverTimestamp: new Date().toISOString(),
+            scanId: `model-${timestamp}`,
+            clientIp: req.ip || 'Threat Modeler',
+            isSimulated: true
+        };
+        
+        // Store in scan results
+        scanResults.unshift(syntheticScan);
+        if (scanResults.length > 1000) {
+            scanResults.pop();
+        }
+        
+        // Notify all SSE clients
+        const notification = JSON.stringify({ 
+            type: 'new-scan', 
+            scan: syntheticScan 
+        });
+        sseClients.forEach(client => {
+            client.write(`data: ${notification}\n\n`);
+        });
+        
+        console.log(`🔬 Threat Model analyzed: ${classification} (${confidence.toFixed(2)} confidence)`);
+        
+        res.json({
+            success: true,
+            result: syntheticScan
+        });
+        
+    } catch (error) {
+        console.error('Threat model error:', error);
+        res.status(500).json({ error: 'Failed to analyze threat model' });
+    }
+});
+
 // Serve dashboard HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));

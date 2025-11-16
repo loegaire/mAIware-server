@@ -527,6 +527,133 @@ app.get('/api/threat-correlations', (req, res) => {
     }
 });
 
+// Get Emerging Threat Intelligence - Top IOCs and threats
+app.get('/api/emerging-threats', (req, res) => {
+    try {
+        // Aggregators for different IOC types
+        const malwareFamilies = new Map();
+        const suspiciousAPIs = new Map();
+        const maliciousStrings = new Map();
+        const packers = new Map();
+        
+        // Track threat severity and recency
+        const now = Date.now();
+        const last24h = now - 24 * 60 * 60 * 1000;
+        
+        scanResults.forEach(scan => {
+            const timestamp = new Date(scan.serverTimestamp).getTime();
+            const isRecent = timestamp > last24h;
+            const weight = isRecent ? 2 : 1; // Recent threats weigh more
+            
+            // Only aggregate from Malware and Suspicious classifications
+            if (scan.classification === 'Malware' || scan.classification === 'Suspicious') {
+                
+                // Aggregate Malware Families
+                if (scan.malware_family) {
+                    const family = scan.malware_family;
+                    const current = malwareFamilies.get(family) || { 
+                        count: 0, 
+                        recent: 0, 
+                        severity: scan.classification === 'Malware' ? 3 : 2,
+                        files: [],
+                        agents: new Set()
+                    };
+                    current.count += weight;
+                    if (isRecent) current.recent++;
+                    current.files.push(scan.detected_filename);
+                    current.agents.add(scan.systemInfo?.hostname || scan.clientIp);
+                    malwareFamilies.set(family, current);
+                }
+                
+                // Aggregate Suspicious APIs
+                const apis = scan.key_findings?.api_imports || [];
+                apis.forEach(api => {
+                    const current = suspiciousAPIs.get(api) || { 
+                        count: 0, 
+                        recent: 0,
+                        families: new Set() 
+                    };
+                    current.count += weight;
+                    if (isRecent) current.recent++;
+                    if (scan.malware_family) current.families.add(scan.malware_family);
+                    suspiciousAPIs.set(api, current);
+                });
+                
+                // Aggregate Malicious Strings
+                const strings = scan.key_findings?.key_strings || [];
+                strings.forEach(str => {
+                    const current = maliciousStrings.get(str) || { 
+                        count: 0, 
+                        recent: 0,
+                        families: new Set() 
+                    };
+                    current.count += weight;
+                    if (isRecent) current.recent++;
+                    if (scan.malware_family) current.families.add(scan.malware_family);
+                    maliciousStrings.set(str, current);
+                });
+                
+                // Aggregate Packers
+                const packer = scan.key_findings?.packer_detected;
+                if (packer && packer !== 'None') {
+                    const current = packers.get(packer) || { 
+                        count: 0, 
+                        recent: 0,
+                        families: new Set() 
+                    };
+                    current.count += weight;
+                    if (isRecent) current.recent++;
+                    if (scan.malware_family) current.families.add(scan.malware_family);
+                    packers.set(packer, current);
+                }
+            }
+        });
+        
+        // Helper to convert Map to sorted array
+        const toTopN = (map, n = 5) => {
+            return Array.from(map.entries())
+                .map(([name, data]) => ({
+                    name,
+                    count: data.count,
+                    recent: data.recent,
+                    severity: data.severity || 2,
+                    details: data.families ? Array.from(data.families) : 
+                            (data.files ? data.files.slice(0, 3) : []),
+                    agents: data.agents ? data.agents.size : 0
+                }))
+                .sort((a, b) => {
+                    // Sort by: recent activity, then count, then severity
+                    if (b.recent !== a.recent) return b.recent - a.recent;
+                    if (b.count !== a.count) return b.count - a.count;
+                    return (b.severity || 0) - (a.severity || 0);
+                })
+                .slice(0, n);
+        };
+        
+        res.json({
+            timestamp: new Date().toISOString(),
+            topMalwareFamilies: toTopN(malwareFamilies, 5),
+            topSuspiciousAPIs: toTopN(suspiciousAPIs, 5),
+            topMaliciousStrings: toTopN(maliciousStrings, 5),
+            topPackers: toTopN(packers, 5),
+            summary: {
+                totalThreats: scanResults.filter(s => 
+                    s.classification === 'Malware' || s.classification === 'Suspicious'
+                ).length,
+                recentThreats: scanResults.filter(s => {
+                    const timestamp = new Date(s.serverTimestamp).getTime();
+                    return (timestamp > last24h) && 
+                           (s.classification === 'Malware' || s.classification === 'Suspicious');
+                }).length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Emerging threats error:', error);
+        res.status(500).json({ error: 'Failed to get emerging threats' });
+    }
+});
+
 // Serve dashboard HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));

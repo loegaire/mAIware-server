@@ -40,6 +40,208 @@ h1 {
     margin-bottom: 3rem;
 }
 
+/* Emerging Threat Intelligence Panel */
+.eti-container {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.1) 0%, rgba(255, 165, 2, 0.1) 100%);
+    border: 2px solid rgba(255, 71, 87, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 3rem;
+    box-shadow: 0 4px 16px rgba(255, 71, 87, 0.2);
+}
+
+.eti-header {
+    margin-bottom: 24px;
+}
+
+.eti-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.8rem;
+    color: #ff6b6b;
+    text-shadow: 0 2px 4px rgba(255, 71, 87, 0.3);
+}
+
+.eti-header h2 i {
+    color: #ff4757;
+    margin-right: 10px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.eti-subtitle {
+    color: #b0b0b0;
+    font-size: 0.95rem;
+    margin: 8px 0 16px 0;
+}
+
+.eti-summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.eti-badge {
+    background: rgba(90, 156, 248, 0.2);
+    border: 1px solid rgba(90, 156, 248, 0.4);
+    color: #5a9cf8;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.eti-badge.recent {
+    background: rgba(255, 71, 87, 0.2);
+    border-color: rgba(255, 71, 87, 0.4);
+    color: #ff6b6b;
+}
+
+.eti-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.eti-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 18px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.eti-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.eti-panel h3 {
+    margin: 0 0 6px 0;
+    font-size: 1.1rem;
+    color: #e0e0e0;
+}
+
+.eti-panel h3 i {
+    color: #ffa502;
+    margin-right: 8px;
+}
+
+.eti-subtitle-small {
+    color: #888;
+    font-size: 0.8rem;
+    margin-bottom: 14px;
+}
+
+.eti-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.eti-item {
+    display: flex;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.3s;
+}
+
+.eti-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 165, 2, 0.4);
+    transform: translateX(4px);
+}
+
+.eti-rank {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #ff6b6b, #ffa502);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+}
+
+.eti-item[data-rank="1"] .eti-rank {
+    background: linear-gradient(135deg, #ff4757, #ff6348);
+    transform: scale(1.1);
+}
+
+.eti-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.eti-name {
+    font-weight: 600;
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eti-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.eti-count {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+.eti-recent-badge {
+    background: rgba(255, 71, 87, 0.2);
+    border: 1px solid rgba(255, 71, 87, 0.4);
+    color: #ff6b6b;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.eti-agent-badge {
+    background: rgba(90, 156, 248, 0.2);
+    border: 1px solid rgba(90, 156, 248, 0.4);
+    color: #5a9cf8;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.eti-details {
+    margin-top: 6px;
+    color: #999;
+    font-size: 0.75rem;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eti-empty {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+    font-style: italic;
+}
+
 .stat-card {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);

@@ -49,6 +49,44 @@
             </div>
         </div>
         
+        <!-- NEW: Emerging Threat Intelligence Panel -->
+        <div class="eti-container">
+            <div class="eti-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Emerging Threat Intelligence (ETI)</h2>
+                <p class="eti-subtitle">Real-time actionable intelligence on active threats and indicators of compromise</p>
+                <div class="eti-summary">
+                    <span class="eti-badge" id="eti-total">0 Total Threats</span>
+                    <span class="eti-badge recent" id="eti-recent">0 Last 24h</span>
+                </div>
+            </div>
+            
+            <div class="eti-grid">
+                <div class="eti-panel">
+                    <h3><i class="fas fa-virus"></i> Top Malware Families</h3>
+                    <div class="eti-subtitle-small">Most active malware families detected</div>
+                    <div id="eti-malware" class="eti-list"></div>
+                </div>
+                
+                <div class="eti-panel">
+                    <h3><i class="fas fa-code"></i> Top Suspicious APIs</h3>
+                    <div class="eti-subtitle-small">Most frequently called malicious APIs</div>
+                    <div id="eti-apis" class="eti-list"></div>
+                </div>
+                
+                <div class="eti-panel">
+                    <h3><i class="fas fa-terminal"></i> Top Malicious Strings</h3>
+                    <div class="eti-subtitle-small">Most common IOC strings and commands</div>
+                    <div id="eti-strings" class="eti-list"></div>
+                </div>
+                
+                <div class="eti-panel">
+                    <h3><i class="fas fa-shield-alt"></i> Top Packers/Obfuscators</h3>
+                    <div class="eti-subtitle-small">Most used evasion techniques</div>
+                    <div id="eti-packers" class="eti-list"></div>
+                </div>
+            </div>
+        </div>
+        
         <div class="scans-container">
             <div class="scans-header">
                 <h2>Recent Scans</h2>
@@ -534,6 +572,64 @@
             }
         }
         
+        async function loadEmergingThreats() {
+            try {
+                const response = await fetch('/api/emerging-threats');
+                const data = await response.json();
+                
+                // Update summary badges
+                document.getElementById('eti-total').textContent = 
+                    `${data.summary.totalThreats} Total Threats`;
+                document.getElementById('eti-recent').textContent = 
+                    `${data.summary.recentThreats} Last 24h`;
+                
+                // Helper to render IOC list
+                const renderIOCList = (items, container) => {
+                    if (items.length === 0) {
+                        container.innerHTML = '<div class="eti-empty">No threats detected</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = items.map((item, index) => {
+                        const rank = index + 1;
+                        const recentBadge = item.recent > 0 ? 
+                            `<span class="eti-recent-badge">${item.recent} recent</span>` : '';
+                        const agentBadge = item.agents > 0 ? 
+                            `<span class="eti-agent-badge">${item.agents} agents</span>` : '';
+                        
+                        return `
+                            <div class="eti-item" data-rank="${rank}">
+                                <div class="eti-rank">${rank}</div>
+                                <div class="eti-content">
+                                    <div class="eti-name">${item.name}</div>
+                                    <div class="eti-meta">
+                                        <span class="eti-count">${item.count} occurrences</span>
+                                        ${recentBadge}
+                                        ${agentBadge}
+                                    </div>
+                                    ${item.details && item.details.length > 0 ? `
+                                        <div class="eti-details">
+                                            ${item.details.slice(0, 2).join(', ')}
+                                            ${item.details.length > 2 ? '...' : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                };
+                
+                // Render each section
+                renderIOCList(data.topMalwareFamilies, document.getElementById('eti-malware'));
+                renderIOCList(data.topSuspiciousAPIs, document.getElementById('eti-apis'));
+                renderIOCList(data.topMaliciousStrings, document.getElementById('eti-strings'));
+                renderIOCList(data.topPackers, document.getElementById('eti-packers'));
+                
+            } catch (error) {
+                console.error('Failed to load emerging threats:', error);
+            }
+        }
+        
         let graphSimulation = null;
         let graphSvg = null;
         
@@ -779,6 +875,7 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadEmergingThreats();
             loadCorrelationGraph();
             loadGeoMap();
         }
@@ -788,6 +885,7 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadEmergingThreats();
             loadCorrelationGraph();
         }
         

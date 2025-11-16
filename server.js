@@ -13,6 +13,7 @@ app.use(express.static('public'));
 // In-memory storage (use Redis/MongoDB in production)
 const scanResults = [];
 const clients = new Map(); // Track active clients
+const sseClients = []; // Track SSE connections for dashboard updates
 
 // --- API Endpoints ---
 
@@ -23,6 +24,28 @@ app.get('/api/health', (req, res) => {
         totalScans: scanResults.length,
         activeClients: clients.size,
         timestamp: new Date().toISOString() 
+    });
+});
+
+// SSE endpoint for real-time dashboard updates
+app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // Send initial connection message
+    res.write('data: {"type":"connected"}\n\n');
+
+    // Add this client to the list
+    sseClients.push(res);
+
+    // Remove client on disconnect
+    req.on('close', () => {
+        const index = sseClients.indexOf(res);
+        if (index !== -1) {
+            sseClients.splice(index, 1);
+        }
     });
 });
 
@@ -60,6 +83,15 @@ app.post('/api/submit-scan', (req, res) => {
         });
         
         console.log(`✅ Received scan: ${scanData.detected_filename} → ${scanData.classification}`);
+        
+        // Notify all connected dashboard clients via SSE
+        const notification = JSON.stringify({ 
+            type: 'new-scan', 
+            scan: scanEntry 
+        });
+        sseClients.forEach(client => {
+            client.write(`data: ${notification}\n\n`);
+        });
         
         res.json({ 
             success: true, 
@@ -178,6 +210,174 @@ app.get('/api/daily-scans', (req, res) => {
     );
     
     res.json({ days: result });
+});
+
+// Get malware source distribution
+app.get('/api/malware-sources', (req, res) => {
+    try {
+        const sources = {
+            'Email Attachment': 0,
+            'Web Download': 0,
+            'USB/External Drive': 0,
+            'Internal Network': 0,
+            'Unknown': 0
+        };
+        
+        scanResults.forEach(scan => {
+            const filename = scan.detected_filename?.toLowerCase() || '';
+            
+            // Categorize based on file patterns and extensions
+            if (filename.match(/\.(doc|docx|xls|xlsx|pdf|zip|rar|7z)$/)) {
+                sources['Email Attachment']++;
+            } else if (filename.match(/\.(exe|msi|dmg|pkg|deb|rpm)$/)) {
+                sources['Web Download']++;
+            } else if (filename.match(/\.(dll|sys|bin)$/)) {
+                sources['Internal Network']++;
+            } else if (filename.match(/\.(jpg|png|gif|mp3|mp4|avi|mov)$/)) {
+                sources['USB/External Drive']++;
+            } else {
+                sources['Unknown']++;
+            }
+        });
+        
+        // Convert to array format for Chart.js
+        const data = Object.entries(sources).map(([source, count]) => ({
+            source,
+            count
+        }));
+        
+        res.json({ sources: data });
+        
+    } catch (error) {
+        console.error('Malware sources error:', error);
+        res.status(500).json({ error: 'Failed to get malware sources' });
+    }
+});
+
+// Simple IP to location mapping for demo purposes
+// In production, use MaxMind GeoIP2 or a geolocation API service
+function getLocationFromIP(ip) {
+    // Handle localhost and local IPs - assign diverse demo locations
+    if (ip === '::1' || ip === '127.0.0.1' || ip.includes('::1') || ip.startsWith('127.')) {
+        // Use a consistent hash of the IP to always assign to the same location
+        const ipHash = ip.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const locationIndex = ipHash % 18;
+        const demoLocations = [
+            { lat: 37.7749, lng: -122.4194, city: 'San Francisco', country: 'USA' },
+            { lat: 40.7128, lng: -74.0060, city: 'New York', country: 'USA' },
+            { lat: 51.5074, lng: -0.1278, city: 'London', country: 'UK' },
+            { lat: 48.8566, lng: 2.3522, city: 'Paris', country: 'France' },
+            { lat: 35.6762, lng: 139.6503, city: 'Tokyo', country: 'Japan' },
+            { lat: -33.8688, lng: 151.2093, city: 'Sydney', country: 'Australia' },
+            { lat: 52.5200, lng: 13.4050, city: 'Berlin', country: 'Germany' },
+            { lat: 55.7558, lng: 37.6173, city: 'Moscow', country: 'Russia' },
+            { lat: 19.4326, lng: -99.1332, city: 'Mexico City', country: 'Mexico' },
+            { lat: -23.5505, lng: -46.6333, city: 'São Paulo', country: 'Brazil' },
+            { lat: 1.3521, lng: 103.8198, city: 'Singapore', country: 'Singapore' },
+            { lat: 25.2048, lng: 55.2708, city: 'Dubai', country: 'UAE' },
+            { lat: 28.6139, lng: 77.2090, city: 'New Delhi', country: 'India' },
+            { lat: 39.9042, lng: 116.4074, city: 'Beijing', country: 'China' },
+            { lat: 37.5665, lng: 126.9780, city: 'Seoul', country: 'South Korea' },
+            { lat: 43.6532, lng: -79.3832, city: 'Toronto', country: 'Canada' },
+            { lat: -34.6037, lng: -58.3816, city: 'Buenos Aires', country: 'Argentina' },
+            { lat: 59.3293, lng: 18.0686, city: 'Stockholm', country: 'Sweden' },
+        ];
+        return demoLocations[locationIndex];
+    }
+    
+    // Sample IP to location mapping for demo
+    const ipLocations = {
+        '192.168': { lat: 37.7749, lng: -122.4194, city: 'San Francisco', country: 'USA' },
+        '10.0': { lat: 40.7128, lng: -74.0060, city: 'New York', country: 'USA' },
+        '172.16': { lat: 51.5074, lng: -0.1278, city: 'London', country: 'UK' },
+        '172.17': { lat: 48.8566, lng: 2.3522, city: 'Paris', country: 'France' },
+        '172.18': { lat: 35.6762, lng: 139.6503, city: 'Tokyo', country: 'Japan' },
+        '172.19': { lat: -33.8688, lng: 151.2093, city: 'Sydney', country: 'Australia' },
+        '172.20': { lat: 52.5200, lng: 13.4050, city: 'Berlin', country: 'Germany' },
+        '172.21': { lat: 55.7558, lng: 37.6173, city: 'Moscow', country: 'Russia' },
+        '172.22': { lat: 19.4326, lng: -99.1332, city: 'Mexico City', country: 'Mexico' },
+        '172.23': { lat: -23.5505, lng: -46.6333, city: 'São Paulo', country: 'Brazil' },
+    };
+    
+    // Default locations for common IP patterns
+    const defaultLocations = [
+        { lat: 1.3521, lng: 103.8198, city: 'Singapore', country: 'Singapore' },
+        { lat: 25.2048, lng: 55.2708, city: 'Dubai', country: 'UAE' },
+        { lat: 28.6139, lng: 77.2090, city: 'New Delhi', country: 'India' },
+        { lat: 39.9042, lng: 116.4074, city: 'Beijing', country: 'China' },
+        { lat: 37.5665, lng: 126.9780, city: 'Seoul', country: 'South Korea' },
+        { lat: 43.6532, lng: -79.3832, city: 'Toronto', country: 'Canada' },
+        { lat: -34.6037, lng: -58.3816, city: 'Buenos Aires', country: 'Argentina' },
+        { lat: 59.3293, lng: 18.0686, city: 'Stockholm', country: 'Sweden' },
+    ];
+    
+    // Check for known IP prefixes
+    for (const [prefix, location] of Object.entries(ipLocations)) {
+        if (ip.startsWith(prefix)) {
+            return location;
+        }
+    }
+    
+    // For unknown IPs, assign a random location from defaults
+    const hash = ip.split('.').reduce((acc, part) => acc + parseInt(part || 0), 0);
+    return defaultLocations[hash % defaultLocations.length];
+}
+
+// Get geographic data for IP addresses with malware detections
+app.get('/api/geo-data', (req, res) => {
+    try {
+        // Group scans by IP address
+        const ipData = new Map();
+        
+        scanResults.forEach(scan => {
+            const ip = scan.systemInfo?.ip || scan.clientIp || 'Unknown';
+            
+            if (ip === 'Unknown') {
+                return; // Skip unknown addresses
+            }
+            
+            if (!ipData.has(ip)) {
+                const location = getLocationFromIP(ip);
+                ipData.set(ip, {
+                    ip: ip,
+                    location: location,
+                    scans: [],
+                    malwareCount: 0,
+                    suspiciousCount: 0,
+                    benignCount: 0,
+                    totalScans: 0
+                });
+            }
+            
+            const data = ipData.get(ip);
+            data.scans.push({
+                filename: scan.detected_filename,
+                classification: scan.classification,
+                timestamp: scan.serverTimestamp
+            });
+            data.totalScans++;
+            
+            if (scan.classification === 'Malware') {
+                data.malwareCount++;
+            } else if (scan.classification === 'Suspicious') {
+                data.suspiciousCount++;
+            } else if (scan.classification === 'Benign') {
+                data.benignCount++;
+            }
+        });
+        
+        // Convert map to array
+        const geoDataArray = Array.from(ipData.values());
+        
+        res.json({
+            total: geoDataArray.length,
+            locations: geoDataArray
+        });
+        
+    } catch (error) {
+        console.error('Geo data error:', error);
+        res.status(500).json({ error: 'Failed to get geographic data' });
+    }
 });
 
 // Serve dashboard HTML

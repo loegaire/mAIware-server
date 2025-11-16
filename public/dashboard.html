@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="styles.css">
     <!-- Add Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- Add Leaflet.js for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <div class="container">
@@ -47,7 +50,7 @@
         <div class="scans-container">
             <div class="scans-header">
                 <h2>Recent Scans</h2>
-                <button class="refresh-btn" onclick="loadData()">
+                <button class="refresh-btn" onclick="manualRefresh()">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
             </div>
@@ -84,6 +87,29 @@
                 </div>
             </div>
             <canvas id="dailyScansChart"></canvas>
+        </div>
+        
+        <!-- NEW: Geographic Distribution Map -->
+        <div class="map-container">
+            <div class="map-header">
+                <h2><i class="fas fa-globe"></i> Geographic Distribution of Detections</h2>
+                <div class="map-legend">
+                    <span class="legend-item"><span class="legend-dot malware-dot"></span> Malware</span>
+                    <span class="legend-item"><span class="legend-dot suspicious-dot"></span> Suspicious</span>
+                    <span class="legend-item"><span class="legend-dot benign-dot"></span> Benign</span>
+                </div>
+            </div>
+            <div id="worldMap" style="height: 500px; border-radius: 8px;"></div>
+        </div>
+        
+        <!-- NEW: Malware Source Distribution Pie Chart -->
+        <div class="chart-container" style="margin-top: 24px;">
+            <div class="chart-header">
+                <h2><i class="fas fa-chart-pie"></i> Malware Source Distribution</h2>
+            </div>
+            <div style="max-width: 500px; margin: 0 auto;">
+                <canvas id="malwareSourceChart"></canvas>
+            </div>
         </div>
     </div>
     
@@ -261,6 +287,228 @@
             }
         }
         
+        let worldMap = null;
+        let markerLayer = null;
+        let mapInitialized = false;
+        let lastGeoDataHash = '';
+        let sourceChart = null;
+        
+        function initializeMap() {
+            if (mapInitialized) return;
+            
+            try {
+                worldMap = L.map('worldMap', {
+                    zoomControl: true,
+                    scrollWheelZoom: true
+                }).setView([20, 0], 2);
+                
+                // Use dark theme tiles
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(worldMap);
+                
+                markerLayer = L.layerGroup().addTo(worldMap);
+                mapInitialized = true;
+            } catch (error) {
+                console.error('Failed to initialize map:', error);
+            }
+        }
+        
+        async function loadGeoMap() {
+            try {
+                // Initialize map only once
+                if (!mapInitialized) {
+                    initializeMap();
+                }
+                
+                if (!markerLayer) return;
+                
+                const response = await fetch('/api/geo-data');
+                const data = await response.json();
+                
+                // Generate hash of current data to detect changes
+                const currentHash = JSON.stringify(data.locations.map(l => 
+                    `${l.ip}-${l.totalScans}-${l.malwareCount}-${l.suspiciousCount}`
+                )).substring(0, 100);
+                
+                // Skip update if data hasn't changed
+                if (currentHash === lastGeoDataHash && markerLayer.getLayers().length > 0) {
+                    return;
+                }
+                lastGeoDataHash = currentHash;
+                
+                // Clear existing markers
+                markerLayer.clearLayers();
+                
+                // Add markers for each location
+                data.locations.forEach(location => {
+                    const { lat, lng, city, country } = location.location;
+                    
+                    // Determine marker color based on severity
+                    let markerColor = '#26de81'; // benign (green)
+                    let primaryClassification = 'Benign';
+                    
+                    if (location.malwareCount > 0) {
+                        markerColor = '#ff4757'; // malware (red)
+                        primaryClassification = 'Malware';
+                    } else if (location.suspiciousCount > 0) {
+                        markerColor = '#ffa502'; // suspicious (orange)
+                        primaryClassification = 'Suspicious';
+                    }
+                    
+                    // Calculate marker size based on total scans (min 8, max 24)
+                    const markerSize = Math.min(24, Math.max(8, 8 + location.totalScans * 2));
+                    
+                    // Create custom circular marker
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: markerSize / 2,
+                        fillColor: markerColor,
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.6
+                    });
+                    
+                    // Create popup content
+                    const popupContent = `
+                        <div style="color: #333; min-width: 200px;">
+                            <h3 style="margin: 0 0 10px 0; color: #1a1a1a; font-size: 1.1rem;">
+                                <i class="fas fa-map-marker-alt" style="color: ${markerColor};"></i>
+                                ${city}, ${country}
+                            </h3>
+                            <p style="margin: 5px 0; color: #555;"><strong>IP:</strong> ${location.ip}</p>
+                            <p style="margin: 5px 0; color: #555;"><strong>Total Scans:</strong> ${location.totalScans}</p>
+                            <div style="margin-top: 10px;">
+                                <div style="margin: 3px 0;">
+                                    <span style="color: #ff4757;">●</span> Malware: ${location.malwareCount}
+                                </div>
+                                <div style="margin: 3px 0;">
+                                    <span style="color: #ffa502;">●</span> Suspicious: ${location.suspiciousCount}
+                                </div>
+                                <div style="margin: 3px 0;">
+                                    <span style="color: #26de81;">●</span> Benign: ${location.benignCount}
+                                </div>
+                            </div>
+                            ${location.scans.length > 0 ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                                    <strong>Recent Detections:</strong>
+                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.85rem;">
+                                        ${location.scans.slice(0, 3).map(scan => `
+                                            <li style="margin: 2px 0;">
+                                                ${scan.filename} 
+                                                <span style="color: ${
+                                                    scan.classification === 'Malware' ? '#ff4757' : 
+                                                    scan.classification === 'Suspicious' ? '#ffa502' : '#26de81'
+                                                };">(${scan.classification})</span>
+                                            </li>
+                                        `).join('')}
+                                        ${location.scans.length > 3 ? `<li>...and ${location.scans.length - 3} more</li>` : ''}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                    marker.addTo(markerLayer);
+                    
+                    // Add hover effect
+                    marker.on('mouseover', function() {
+                        this.setStyle({
+                            fillOpacity: 0.9,
+                            opacity: 1
+                        });
+                    });
+                    
+                    marker.on('mouseout', function() {
+                        this.setStyle({
+                            fillOpacity: 0.6,
+                            opacity: 0.8
+                        });
+                    });
+                });
+                
+                console.log(`Map updated with ${data.locations.length} locations`);
+                
+            } catch (error) {
+                console.error('Failed to load geo map:', error);
+            }
+        }
+        
+        async function loadMalwareSources() {
+            try {
+                const response = await fetch('/api/malware-sources');
+                const data = await response.json();
+                
+                const ctx = document.getElementById('malwareSourceChart');
+                
+                // Destroy existing chart if it exists
+                if (sourceChart) {
+                    sourceChart.destroy();
+                }
+                
+                const labels = data.sources.map(s => s.source);
+                const counts = data.sources.map(s => s.count);
+                
+                // Color scheme for different sources
+                const colors = [
+                    '#ff6b6b', // Email Attachment - red
+                    '#4ecdc4', // Web Download - teal
+                    '#ffe66d', // USB/External Drive - yellow
+                    '#a8dadc', // Internal Network - light blue
+                    '#95a5a6'  // Unknown - gray
+                ];
+                
+                sourceChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: colors,
+                            borderColor: '#1a1a2e',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#e0e0e0',
+                                    font: { size: 12 },
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#e0e0e0',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Failed to load malware sources:', error);
+            }
+        }
+        
         function setChartDays(days) {
             currentChartDays = days;
             
@@ -277,13 +525,53 @@
             loadStats();
             loadScans();
             loadDailyChart();
+            loadMalwareSources();
+            loadGeoMap();
+        }
+        
+        function loadDataWithoutMap() {
+            loadStats();
+            loadScans();
+            loadDailyChart();
+            loadMalwareSources();
         }
         
         // Initial load
         loadData();
         
-        // Auto-refresh every 5 seconds
-        setInterval(loadData, 5000);
+        // Set up Server-Sent Events for real-time updates
+        const eventSource = new EventSource('/api/events');
+        
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'connected') {
+                console.log('Connected to server for real-time updates');
+            } else if (data.type === 'new-scan') {
+                console.log('New scan received:', data.scan.detected_filename);
+                // Reload all data when new scan arrives
+                loadDataWithoutMap();
+                // Update map less frequently (only if it's been more than 10 seconds)
+                if (!window.lastMapUpdate || Date.now() - window.lastMapUpdate > 10000) {
+                    loadGeoMap();
+                    window.lastMapUpdate = Date.now();
+                }
+            }
+        };
+        
+        eventSource.onerror = function(error) {
+            console.error('SSE Error:', error);
+            // Fallback: reload data every 30 seconds if SSE connection fails
+            if (eventSource.readyState === EventSource.CLOSED) {
+                console.log('SSE connection closed, falling back to polling...');
+                setInterval(loadDataWithoutMap, 30000);
+            }
+        };
+        
+        // Manual refresh button functionality
+        window.manualRefresh = function() {
+            loadData();
+        };
     </script>
 </body>
 </html>

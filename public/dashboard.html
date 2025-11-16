@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mAIware Server Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #5a9cf8;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stat-card i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .stat-card.malware { border-color: #ff4757; }
+        .stat-card.malware i { color: #ff4757; }
+        .stat-card.malware .stat-number { color: #ff4757; }
+        
+        .stat-card.suspicious { border-color: #ffa502; }
+        .stat-card.suspicious i { color: #ffa502; }
+        .stat-card.suspicious .stat-number { color: #ffa502; }
+        
+        .stat-card.benign { border-color: #26de81; }
+        .stat-card.benign i { color: #26de81; }
+        .stat-card.benign .stat-number { color: #26de81; }
+        
+        .stat-card.info { border-color: #5a9cf8; }
+        .stat-card.info i { color: #5a9cf8; }
+        .stat-card.info .stat-number { color: #5a9cf8; }
+        
+        .scans-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+        
+        .scans-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .scans-header h2 {
+            color: #5a9cf8;
+        }
+        
+        .refresh-btn {
+            background: #5a9cf8;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            background: #4a8ce8;
+        }
+        
+        .scans-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .scans-table th {
+            text-align: left;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: #5a9cf8;
+            font-weight: 600;
+        }
+        
+        .scans-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .scans-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .badge.malware { background: #ff4757; color: white; }
+        .badge.suspicious { background: #ffa502; color: white; }
+        .badge.benign { background: #26de81; color: white; }
+        
+        .hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-shield-virus"></i> mAIware Server</h1>
+            <p class="subtitle">Real-time Malware Analysis Dashboard</p>
+        </header>
+        
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card info">
+                <i class="fas fa-laptop"></i>
+                <span class="stat-number" id="stat-clients">0</span>
+                <span class="stat-label">Active Clients</span>
+            </div>
+            <div class="stat-card info">
+                <i class="fas fa-chart-line"></i>
+                <span class="stat-number" id="stat-total">0</span>
+                <span class="stat-label">Total Scans</span>
+            </div>
+            <div class="stat-card malware">
+                <i class="fas fa-bug"></i>
+                <span class="stat-number" id="stat-malware">0</span>
+                <span class="stat-label">Malware</span>
+            </div>
+            <div class="stat-card suspicious">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span class="stat-number" id="stat-suspicious">0</span>
+                <span class="stat-label">Suspicious</span>
+            </div>
+            <div class="stat-card benign">
+                <i class="fas fa-check-circle"></i>
+                <span class="stat-number" id="stat-benign">0</span>
+                <span class="stat-label">Benign</span>
+            </div>
+        </div>
+        
+        <div class="scans-container">
+            <div class="scans-header">
+                <h2>Recent Scans</h2>
+                <button class="refresh-btn" onclick="loadData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <table class="scans-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Filename</th>
+                        <th>Classification</th>
+                        <th>Client IP</th>
+                        <th>Hash (SHA256)</th>
+                    </tr>
+                </thead>
+                <tbody id="scans-tbody">
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No scans yet. Waiting for clients...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('stat-clients').textContent = stats.activeClients;
+                document.getElementById('stat-total').textContent = stats.totalScans;
+                document.getElementById('stat-malware').textContent = stats.malwareCount;
+                document.getElementById('stat-suspicious').textContent = stats.suspiciousCount;
+                document.getElementById('stat-benign').textContent = stats.benignCount;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+        
+        async function loadScans() {
+            try {
+                const response = await fetch('/api/scans?limit=50');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('scans-tbody');
+                
+                if (data.scans.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>No scans yet. Waiting for clients...</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = data.scans.map(scan => {
+                    const timestamp = new Date(scan.serverTimestamp).toLocaleString();
+                    const hash = scan.file_hashes?.sha256 || 'N/A';
+                    const hashShort = hash.substring(0, 16) + '...';
+                    const classification = scan.classification || 'Unknown';
+                    const badgeClass = classification.toLowerCase();
+                    
+                    return `
+                        <tr>
+                            <td>${timestamp}</td>
+                            <td>${scan.detected_filename}</td>
+                            <td><span class="badge ${badgeClass}">${classification}</span></td>
+                            <td>${scan.systemInfo?.ip || scan.clientIp || 'Unknown'}</td>
+                            <td class="hash" title="${hash}">${hashShort}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Failed to load scans:', error);
+            }
+        }
+        
+        function loadData() {
+            loadStats();
+            loadScans();
+        }
+        
+        // Initial load
+        loadData();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>

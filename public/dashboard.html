@@ -11,6 +11,8 @@
     <!-- Add Leaflet.js for maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Add D3.js for force-directed graph -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -109,6 +111,29 @@
             </div>
             <div style="max-width: 500px; margin: 0 auto;">
                 <canvas id="malwareSourceChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- NEW: Threat Vector Correlation Explorer -->
+        <div class="correlation-container">
+            <div class="correlation-header">
+                <h2><i class="fas fa-project-diagram"></i> Threat Vector Correlation Explorer</h2>
+                <p class="correlation-subtitle">Interactive intelligence map showing relationships between malware families, agents, APIs, and indicators</p>
+            </div>
+            <div class="graph-controls">
+                <button class="graph-btn" onclick="resetGraph()"><i class="fas fa-sync"></i> Reset View</button>
+                <button class="graph-btn" onclick="centerGraph()"><i class="fas fa-compress"></i> Center</button>
+                <div class="graph-legend">
+                    <span class="legend-item"><span class="node-sample malware-node"></span> Malware Family</span>
+                    <span class="legend-item"><span class="node-sample agent-node"></span> Agent/System</span>
+                    <span class="legend-item"><span class="node-sample api-node"></span> API Call</span>
+                    <span class="legend-item"><span class="node-sample string-node"></span> Suspicious String</span>
+                </div>
+            </div>
+            <div id="correlationGraph"></div>
+            <div id="nodeDetails" class="node-details" style="display: none;">
+                <h3 id="detailsTitle"></h3>
+                <div id="detailsContent"></div>
             </div>
         </div>
     </div>
@@ -509,6 +534,234 @@
             }
         }
         
+        let graphSimulation = null;
+        let graphSvg = null;
+        
+        async function loadCorrelationGraph() {
+            try {
+                const response = await fetch('/api/threat-correlations');
+                const data = await response.json();
+                
+                // Clear existing graph
+                d3.select('#correlationGraph').selectAll('*').remove();
+                
+                const container = document.getElementById('correlationGraph');
+                const width = container.clientWidth;
+                const height = 600;
+                
+                // Create SVG
+                graphSvg = d3.select('#correlationGraph')
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .style('background', '#0a0a0a')
+                    .style('border-radius', '8px');
+                
+                const g = graphSvg.append('g');
+                
+                // Add zoom behavior
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 4])
+                    .on('zoom', (event) => {
+                        g.attr('transform', event.transform);
+                    });
+                
+                graphSvg.call(zoom);
+                
+                // Color schemes for different node types
+                const colorMap = {
+                    malware: '#ff4757',
+                    agent: '#5a9cf8',
+                    api: '#ffa502',
+                    string: '#26de81'
+                };
+                
+                // Create force simulation
+                graphSimulation = d3.forceSimulation(data.nodes)
+                    .force('link', d3.forceLink(data.links)
+                        .id(d => d.id)
+                        .distance(d => d.type === 'correlated_with' ? 200 : 100)
+                        .strength(d => d.strength * 0.3))
+                    .force('charge', d3.forceManyBody().strength(-300))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(30));
+                
+                // Draw links
+                const link = g.append('g')
+                    .selectAll('line')
+                    .data(data.links)
+                    .enter()
+                    .append('line')
+                    .attr('stroke', d => {
+                        if (d.type === 'correlated_with') return '#ff6b6b';
+                        if (d.type === 'detected_by') return '#5a9cf8';
+                        if (d.type === 'uses_api') return '#ffa502';
+                        return '#26de81';
+                    })
+                    .attr('stroke-width', d => Math.sqrt(d.strength) + 1)
+                    .attr('stroke-opacity', 0.6);
+                
+                // Draw nodes
+                const node = g.append('g')
+                    .selectAll('circle')
+                    .data(data.nodes)
+                    .enter()
+                    .append('circle')
+                    .attr('r', d => {
+                        if (d.type === 'malware') return 15 + Math.min(d.count * 2, 15);
+                        if (d.type === 'agent') return 12 + Math.min(d.count, 10);
+                        return 8 + Math.min(d.count, 8);
+                    })
+                    .attr('fill', d => colorMap[d.type])
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 2)
+                    .style('cursor', 'pointer')
+                    .call(d3.drag()
+                        .on('start', dragstarted)
+                        .on('drag', dragged)
+                        .on('end', dragended))
+                    .on('click', (event, d) => showNodeDetails(d, data))
+                    .on('mouseover', function(event, d) {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('stroke-width', 4)
+                            .attr('r', function() {
+                                const currentR = parseFloat(d3.select(this).attr('r'));
+                                return currentR * 1.3;
+                            });
+                    })
+                    .on('mouseout', function(event, d) {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('stroke-width', 2)
+                            .attr('r', function() {
+                                if (d.type === 'malware') return 15 + Math.min(d.count * 2, 15);
+                                if (d.type === 'agent') return 12 + Math.min(d.count, 10);
+                                return 8 + Math.min(d.count, 8);
+                            });
+                    });
+                
+                // Add labels
+                const label = g.append('g')
+                    .selectAll('text')
+                    .data(data.nodes)
+                    .enter()
+                    .append('text')
+                    .text(d => d.label.length > 20 ? d.label.substring(0, 20) + '...' : d.label)
+                    .attr('font-size', d => d.type === 'malware' ? '12px' : '10px')
+                    .attr('fill', '#e0e0e0')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', d => {
+                        if (d.type === 'malware') return 35;
+                        if (d.type === 'agent') return 25;
+                        return 20;
+                    })
+                    .style('pointer-events', 'none')
+                    .style('font-weight', d => d.type === 'malware' ? 'bold' : 'normal');
+                
+                // Update positions on simulation tick
+                graphSimulation.on('tick', () => {
+                    link
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+                    
+                    node
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+                    
+                    label
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y);
+                });
+                
+                // Drag functions
+                function dragstarted(event, d) {
+                    if (!event.active) graphSimulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+                
+                function dragged(event, d) {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }
+                
+                function dragended(event, d) {
+                    if (!event.active) graphSimulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }
+                
+                console.log(`Correlation graph loaded: ${data.nodes.length} nodes, ${data.links.length} links`);
+                
+            } catch (error) {
+                console.error('Failed to load correlation graph:', error);
+            }
+        }
+        
+        function showNodeDetails(node, graphData) {
+            const detailsPanel = document.getElementById('nodeDetails');
+            const detailsTitle = document.getElementById('detailsTitle');
+            const detailsContent = document.getElementById('detailsContent');
+            
+            detailsTitle.textContent = node.label;
+            
+            let html = `<p><strong>Type:</strong> ${node.type.toUpperCase()}</p>`;
+            html += `<p><strong>Occurrences:</strong> ${node.count}</p>`;
+            
+            // Find connections
+            const connections = graphData.links.filter(l => 
+                l.source.id === node.id || l.target.id === node.id
+            );
+            
+            if (connections.length > 0) {
+                html += `<p><strong>Connections:</strong> ${connections.length}</p>`;
+                html += '<ul style="margin: 10px 0; padding-left: 20px;">';
+                connections.slice(0, 10).forEach(link => {
+                    const otherNode = link.source.id === node.id ? link.target : link.source;
+                    html += `<li>${link.type.replace(/_/g, ' ')}: ${otherNode.label}</li>`;
+                });
+                if (connections.length > 10) {
+                    html += `<li>...and ${connections.length - 10} more</li>`;
+                }
+                html += '</ul>';
+            }
+            
+            if (node.details && node.details.length > 0) {
+                html += '<p><strong>Associated Files:</strong></p>';
+                html += '<ul style="margin: 10px 0; padding-left: 20px; max-height: 150px; overflow-y: auto;">';
+                node.details.slice(0, 10).forEach(file => {
+                    html += `<li>${file}</li>`;
+                });
+                if (node.details.length > 10) {
+                    html += `<li>...and ${node.details.length - 10} more</li>`;
+                }
+                html += '</ul>';
+            }
+            
+            detailsContent.innerHTML = html;
+            detailsPanel.style.display = 'block';
+        }
+        
+        function resetGraph() {
+            if (graphSimulation) {
+                graphSimulation.alpha(1).restart();
+            }
+        }
+        
+        function centerGraph() {
+            if (graphSvg) {
+                graphSvg.transition().duration(750).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity
+                );
+            }
+        }
+        
         function setChartDays(days) {
             currentChartDays = days;
             
@@ -526,6 +779,7 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadCorrelationGraph();
             loadGeoMap();
         }
         
@@ -534,6 +788,7 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadCorrelationGraph();
         }
         
         // Initial load

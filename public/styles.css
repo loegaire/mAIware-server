@@ -301,3 +301,136 @@ h1 {
     background: #1a1a1a;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Correlation Graph */
+.correlation-container {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.correlation-header {
+    margin-bottom: 20px;
+}
+
+.correlation-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.5rem;
+    color: #e0e0e0;
+}
+
+.correlation-header h2 i {
+    color: #5a9cf8;
+    margin-right: 8px;
+}
+
+.correlation-subtitle {
+    color: #888;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.graph-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.graph-btn {
+    background: rgba(90, 156, 248, 0.2);
+    border: 1px solid rgba(90, 156, 248, 0.4);
+    color: #5a9cf8;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.graph-btn:hover {
+    background: rgba(90, 156, 248, 0.3);
+    border-color: #5a9cf8;
+}
+
+.graph-btn i {
+    margin-right: 6px;
+}
+
+.graph-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.node-sample {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid #fff;
+}
+
+.malware-node {
+    background-color: #ff4757;
+}
+
+.agent-node {
+    background-color: #5a9cf8;
+}
+
+.api-node {
+    background-color: #ffa502;
+}
+
+.string-node {
+    background-color: #26de81;
+}
+
+#correlationGraph {
+    width: 100%;
+    min-height: 600px;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.node-details {
+    position: absolute;
+    right: 24px;
+    top: 120px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(90, 156, 248, 0.4);
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+.node-details h3 {
+    margin: 0 0 12px 0;
+    color: #5a9cf8;
+    font-size: 1.1rem;
+    border-bottom: 1px solid rgba(90, 156, 248, 0.3);
+    padding-bottom: 8px;
+}
+
+.node-details p {
+    margin: 8px 0;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.node-details ul {
+    color: #b0b0b0;
+    font-size: 0.85rem;
+}
+
+.node-details li {
+    margin: 4px 0;
+}

@@ -380,6 +380,153 @@ app.get('/api/geo-data', (req, res) => {
     }
 });
 
+// Get threat vector correlations for the interactive graph
+app.get('/api/threat-correlations', (req, res) => {
+    try {
+        const nodes = [];
+        const links = [];
+        const nodeMap = new Map();
+        let nodeId = 0;
+        
+        // Helper to get or create node
+        const getNodeId = (label, type, group) => {
+            const key = `${type}:${label}`;
+            if (!nodeMap.has(key)) {
+                const id = nodeId++;
+                nodeMap.set(key, id);
+                nodes.push({
+                    id,
+                    label,
+                    type,
+                    group,
+                    count: 0,
+                    details: []
+                });
+            }
+            return nodeMap.get(key);
+        };
+        
+        // Process all scans and build relationships
+        const malwareFamilies = new Map();
+        
+        scanResults.forEach(scan => {
+            const family = scan.malware_family || (scan.classification === 'Malware' ? 'Unknown Malware' : null);
+            if (!family) return;
+            
+            const agentId = scan.systemInfo?.hostname || scan.clientIp || 'Unknown Agent';
+            
+            // Get or create malware family node
+            const familyId = getNodeId(family, 'malware', 1);
+            const familyNode = nodes.find(n => n.id === familyId);
+            familyNode.count++;
+            familyNode.details.push(scan.detected_filename);
+            
+            // Track family data for correlation
+            if (!malwareFamilies.has(family)) {
+                malwareFamilies.set(family, {
+                    agents: new Set(),
+                    apis: new Map(),
+                    strings: new Map(),
+                    files: []
+                });
+            }
+            const familyData = malwareFamilies.get(family);
+            familyData.agents.add(agentId);
+            familyData.files.push(scan.detected_filename);
+            
+            // Create agent node and link
+            const agentNodeId = getNodeId(agentId, 'agent', 2);
+            const agentNode = nodes.find(n => n.id === agentNodeId);
+            agentNode.count++;
+            links.push({
+                source: familyId,
+                target: agentNodeId,
+                type: 'detected_by',
+                strength: 2
+            });
+            
+            // Process API imports
+            const apis = scan.key_findings?.api_imports || [];
+            apis.forEach(api => {
+                const apiId = getNodeId(api, 'api', 3);
+                const apiNode = nodes.find(n => n.id === apiId);
+                apiNode.count++;
+                
+                // Track API frequency for this family
+                const apiCount = familyData.apis.get(api) || 0;
+                familyData.apis.set(api, apiCount + 1);
+                
+                // Link malware to API (avoid duplicates)
+                if (!links.find(l => l.source === familyId && l.target === apiId)) {
+                    links.push({
+                        source: familyId,
+                        target: apiId,
+                        type: 'uses_api',
+                        strength: 1
+                    });
+                }
+            });
+            
+            // Process suspicious strings
+            const strings = scan.key_findings?.key_strings || [];
+            strings.slice(0, 3).forEach(str => { // Limit to top 3 to avoid clutter
+                const strId = getNodeId(str.substring(0, 50), 'string', 4);
+                const strNode = nodes.find(n => n.id === strId);
+                strNode.count++;
+                
+                const strCount = familyData.strings.get(str) || 0;
+                familyData.strings.set(str, strCount + 1);
+                
+                if (!links.find(l => l.source === familyId && l.target === strId)) {
+                    links.push({
+                        source: familyId,
+                        target: strId,
+                        type: 'contains_string',
+                        strength: 1
+                    });
+                }
+            });
+        });
+        
+        // Create correlations between malware families that share common traits
+        const familyNodes = nodes.filter(n => n.type === 'malware');
+        for (let i = 0; i < familyNodes.length; i++) {
+            for (let j = i + 1; j < familyNodes.length; j++) {
+                const family1 = familyNodes[i].label;
+                const family2 = familyNodes[j].label;
+                const data1 = malwareFamilies.get(family1);
+                const data2 = malwareFamilies.get(family2);
+                
+                // Check for shared agents
+                const sharedAgents = [...data1.agents].filter(a => data2.agents.has(a));
+                
+                if (sharedAgents.length > 0) {
+                    links.push({
+                        source: familyNodes[i].id,
+                        target: familyNodes[j].id,
+                        type: 'correlated_with',
+                        strength: sharedAgents.length
+                    });
+                }
+            }
+        }
+        
+        res.json({
+            nodes,
+            links,
+            metadata: {
+                totalNodes: nodes.length,
+                totalLinks: links.length,
+                malwareFamilies: familyNodes.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Threat correlations error:', error);
+        res.status(500).json({ error: 'Failed to get threat correlations' });
+    }
+});
+
 // Serve dashboard HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));

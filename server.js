@@ -129,6 +129,57 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
+// NEW: Get daily analysis data for chart
+app.get('/api/daily-scans', (req, res) => {
+    const days = parseInt(req.query.days) || 30; // Default to last 30 days
+    
+    // Create a map to store counts per day
+    const dailyCounts = new Map();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Initialize the last N days with 0 counts
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        dailyCounts.set(dateKey, {
+            date: dateKey,
+            total: 0,
+            malware: 0,
+            suspicious: 0,
+            benign: 0
+        });
+    }
+    
+    // Count scans by day
+    scanResults.forEach(scan => {
+        const scanDate = new Date(scan.serverTimestamp);
+        scanDate.setHours(0, 0, 0, 0);
+        const dateKey = scanDate.toISOString().split('T')[0];
+        
+        if (dailyCounts.has(dateKey)) {
+            const counts = dailyCounts.get(dateKey);
+            counts.total++;
+            
+            if (scan.classification === 'Malware') {
+                counts.malware++;
+            } else if (scan.classification === 'Suspicious') {
+                counts.suspicious++;
+            } else if (scan.classification === 'Benign') {
+                counts.benign++;
+            }
+        }
+    });
+    
+    // Convert map to array sorted by date
+    const result = Array.from(dailyCounts.values()).sort((a, b) => 
+        a.date.localeCompare(b.date)
+    );
+    
+    res.json({ days: result });
+});
+
 // Serve dashboard HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));

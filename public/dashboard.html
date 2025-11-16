@@ -6,6 +6,8 @@
     <title>mAIware Server Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
+    <!-- Add Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -70,9 +72,25 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- NEW: Daily Analysis Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2>Daily Analysis Trends (Last 30 Days)</h2>
+                <div class="chart-controls">
+                    <button class="chart-btn active" onclick="setChartDays(7)">7 Days</button>
+                    <button class="chart-btn" onclick="setChartDays(14)">14 Days</button>
+                    <button class="chart-btn" onclick="setChartDays(30)">30 Days</button>
+                </div>
+            </div>
+            <canvas id="dailyScansChart"></canvas>
+        </div>
     </div>
     
     <script>
+        let dailyChart = null;
+        let currentChartDays = 30;
+        
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');
@@ -130,9 +148,135 @@
             }
         }
         
+        async function loadDailyChart() {
+            try {
+                const response = await fetch(`/api/daily-scans?days=${currentChartDays}`);
+                const data = await response.json();
+                
+                const ctx = document.getElementById('dailyScansChart');
+                
+                // Destroy existing chart if it exists
+                if (dailyChart) {
+                    dailyChart.destroy();
+                }
+                
+                // Format dates for display (MM/DD)
+                const labels = data.days.map(day => {
+                    const date = new Date(day.date);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                });
+                
+                dailyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Total Scans',
+                                data: data.days.map(d => d.total),
+                                borderColor: '#5a9cf8',
+                                backgroundColor: 'rgba(90, 156, 248, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Malware',
+                                data: data.days.map(d => d.malware),
+                                borderColor: '#ff4757',
+                                backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Suspicious',
+                                data: data.days.map(d => d.suspicious),
+                                borderColor: '#ffa502',
+                                backgroundColor: 'rgba(255, 165, 2, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Benign',
+                                data: data.days.map(d => d.benign),
+                                borderColor: '#26de81',
+                                backgroundColor: 'rgba(38, 222, 129, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e0e0e0',
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#e0e0e0',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
+                                borderWidth: 1
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { 
+                                    color: '#888',
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                },
+                                grid: { 
+                                    color: 'rgba(255, 255, 255, 0.05)' 
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: '#888',
+                                    stepSize: 1
+                                },
+                                grid: { 
+                                    color: 'rgba(255, 255, 255, 0.05)' 
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Failed to load daily chart:', error);
+            }
+        }
+        
+        function setChartDays(days) {
+            currentChartDays = days;
+            
+            // Update button states
+            document.querySelectorAll('.chart-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadDailyChart();
+        }
+        
         function loadData() {
             loadStats();
             loadScans();
+            loadDailyChart();
         }
         
         // Initial load

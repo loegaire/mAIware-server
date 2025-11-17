@@ -5,14 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mAIware Server Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link rel="stylesheet" href="styles.css?v=3.0">
     <!-- Add Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <!-- Add Leaflet.js for maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Add Leaflet Heatmap Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <!-- Add D3.js for force-directed graph -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Add html2canvas for screenshots -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <!-- Theme Toggle Button -->
@@ -21,102 +25,340 @@
         <span id="themeText">Dark</span>
     </button>
 
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-shield-virus"></i> mAIware Server</h1>
-            <p class="subtitle">Real-time Malware Analysis Dashboard</p>
-        </header>
-        
-        <!-- Real-time Threat Ticker -->
-        <div class="threat-ticker-container">
-            <div class="ticker-label">
-                <i class="fas fa-broadcast-tower"></i>
-                <span>LIVE THREAT FEED</span>
+    <!-- Preview Backdrop -->
+    <div class="preview-backdrop" id="previewBackdrop"></div>
+
+    <!-- Side Navigation Panel -->
+    <div class="side-panel" id="sidePanel">
+        <!-- Logo Icon (always visible) -->
+        <div class="panel-icon-strip">
+            <div class="panel-logo-icon">
+                <i class="fas fa-shield-virus"></i>
             </div>
-            <div class="threat-ticker" id="threat-ticker">
-                <div class="ticker-content" id="ticker-content">
-                    <span class="ticker-item">System ready - Monitoring for threats...</span>
+        </div>
+        
+        <!-- Analytics Preview Panel (slides out on hover) -->
+        <div class="graphs-preview" id="graphsPreview">
+            <div class="preview-header">
+                <h3><i class="fas fa-chart-line"></i> Analytics Preview</h3>
+                <p>Click anywhere to view full analytics</p>
+            </div>
+            
+            <!-- Scaled-down live view of analytics -->
+            <div class="analytics-miniview" id="analyticsMiniview" onclick="switchView('analytics')">
+                <div class="miniview-preview">
+                    <div class="preview-row">
+                        <div class="preview-box large">
+                            <div class="box-header">Global Threat Map</div>
+                            <div class="box-content map-visual">
+                                <div class="map-dot" style="top: 30%; left: 40%;"></div>
+                                <div class="map-dot" style="top: 60%; left: 70%;"></div>
+                                <div class="map-dot" style="top: 45%; left: 25%;"></div>
+                            </div>
+                        </div>
+                        <div class="preview-box large">
+                            <div class="box-header">Attack Timeline</div>
+                            <div class="box-content chart-visual">
+                                <div class="chart-bar" style="height: 40%;"></div>
+                                <div class="chart-bar" style="height: 70%;"></div>
+                                <div class="chart-bar" style="height: 55%;"></div>
+                                <div class="chart-bar" style="height: 85%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="preview-row">
+                        <div class="preview-box">
+                            <div class="box-header">Top Threats</div>
+                            <div class="box-content list-visual">
+                                <div class="list-item"></div>
+                                <div class="list-item"></div>
+                                <div class="list-item"></div>
+                            </div>
+                        </div>
+                        <div class="preview-box">
+                            <div class="box-header">Correlations</div>
+                            <div class="box-content network-visual">
+                                <div class="network-node" style="top: 30%; left: 30%;"></div>
+                                <div class="network-node" style="top: 60%; left: 50%;"></div>
+                                <div class="network-node" style="top: 45%; left: 70%;"></div>
+                            </div>
+                        </div>
+                        <div class="preview-box">
+                            <div class="box-header">Heatmap</div>
+                            <div class="box-content heat-visual"></div>
+                        </div>
+                    </div>
+                    <div class="preview-row">
+                        <div class="preview-box wide">
+                            <div class="box-header">File Analysis & Distribution</div>
+                            <div class="box-content pie-visual">
+                                <div class="pie-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="miniview-overlay">
+                    <i class="fas fa-expand-alt"></i>
+                    <span>Click to view analytics</span>
+                </div>
+            </div>                <!-- Home Navigation Button -->
+                <div class="preview-home-nav" id="homeNavBtn" onclick="switchView('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Back to Dashboard</span>
                 </div>
             </div>
         </div>
-        
-        <!-- Notification Toast Container -->
-        <div id="notification-container" class="notification-container"></div>
-        
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card info">
-                <i class="fas fa-laptop"></i>
-                <span class="stat-number" id="stat-clients">0</span>
-                <span class="stat-label">Active Clients</span>
-            </div>
-            <div class="stat-card info">
-                <i class="fas fa-chart-line"></i>
-                <span class="stat-number" id="stat-total">0</span>
-                <span class="stat-label">Total Scans</span>
-            </div>
-            <div class="stat-card malware">
-                <i class="fas fa-bug"></i>
-                <span class="stat-number" id="stat-malware">0</span>
-                <span class="stat-label">Malware</span>
-            </div>
-            <div class="stat-card suspicious">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span class="stat-number" id="stat-suspicious">0</span>
-                <span class="stat-label">Suspicious</span>
-            </div>
-            <div class="stat-card benign">
-                <i class="fas fa-check-circle"></i>
-                <span class="stat-number" id="stat-benign">0</span>
-                <span class="stat-label">Benign</span>
-            </div>
-        </div>
-        
-        <!-- NEW: Emerging Threat Intelligence Panel -->
-        <div class="eti-container">
-            <div class="eti-header">
-                <h2><i class="fas fa-exclamation-triangle"></i> Emerging Threat Intelligence (ETI)</h2>
-                <p class="eti-subtitle">Real-time actionable intelligence on active threats and indicators of compromise</p>
-                <div class="eti-summary">
-                    <span class="eti-badge" id="eti-total">0 Total Threats</span>
-                    <span class="eti-badge recent" id="eti-recent">0 Last 24h</span>
+    </div>
+
+    <div class="main-content" id="mainContent">
+        <!-- DASHBOARD VIEW -->
+        <div class="view-container active" id="dashboardView">
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <h1><i class="fas fa-shield-virus pulse-icon"></i> mAIware Server</h1>
+                    <p class="subtitle">Real-time Malware Analysis Dashboard</p>
+                </div>
+            </header>
+            
+            <!-- Real-time Threat Ticker -->
+            <div class="threat-ticker-container animate-slide-in">
+                <div class="ticker-label">
+                    <i class="fas fa-broadcast-tower pulse-icon"></i>
+                    <span>LIVE THREAT FEED</span>
+                </div>
+                <div class="threat-ticker" id="threat-ticker">
+                    <div class="ticker-content" id="ticker-content">
+                        <span class="ticker-item">System ready - Monitoring for threats...</span>
+                    </div>
                 </div>
             </div>
             
-            <div class="eti-grid">
-                <div class="eti-panel">
-                    <h3><i class="fas fa-virus"></i> Top Malware Families</h3>
-                    <div class="eti-subtitle-small">Most active malware families detected</div>
-                    <div id="eti-malware" class="eti-list"></div>
+            <!-- Notification Toast Container -->
+            <div id="notification-container" class="notification-container"></div>
+            
+            <!-- Stats Grid -->
+            <div class="stats-grid animate-fade-in" id="stats-grid">
+                <div class="stat-card info">
+                    <i class="fas fa-laptop"></i>
+                    <span class="stat-number" id="stat-clients">0</span>
+                    <span class="stat-label">Active Clients</span>
+                    <div class="stat-glow"></div>
                 </div>
-                
-                <div class="eti-panel">
-                    <h3><i class="fas fa-code"></i> Top Suspicious APIs</h3>
-                    <div class="eti-subtitle-small">Most frequently called malicious APIs</div>
-                    <div id="eti-apis" class="eti-list"></div>
+                <div class="stat-card info">
+                    <i class="fas fa-chart-line"></i>
+                    <span class="stat-number" id="stat-total">0</span>
+                    <span class="stat-label">Total Scans</span>
+                    <div class="stat-glow"></div>
                 </div>
-                
-                <div class="eti-panel">
-                    <h3><i class="fas fa-terminal"></i> Top Malicious Strings</h3>
-                    <div class="eti-subtitle-small">Most common IOC strings and commands</div>
-                    <div id="eti-strings" class="eti-list"></div>
+                <div class="stat-card malware">
+                    <i class="fas fa-bug"></i>
+                    <span class="stat-number" id="stat-malware">0</span>
+                    <span class="stat-label">Malware</span>
+                    <div class="stat-glow"></div>
                 </div>
-                
-                <div class="eti-panel">
-                    <h3><i class="fas fa-shield-alt"></i> Top Packers/Obfuscators</h3>
-                    <div class="eti-subtitle-small">Most used evasion techniques</div>
-                    <div id="eti-packers" class="eti-list"></div>
+                <div class="stat-card suspicious">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span class="stat-number" id="stat-suspicious">0</span>
+                    <span class="stat-label">Suspicious</span>
+                    <div class="stat-glow"></div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- NEW: Threat Modeler Panel -->
-        <div class="modeler-container">
-            <div class="modeler-header">
-                <h2><i class="fas fa-flask"></i> Predictive Threat Modeler</h2>
-                <p class="modeler-subtitle">Build hypothetical malware and predict how mAIware would classify it</p>
+                <div class="stat-card benign">
+                    <i class="fas fa-check-circle"></i>
+                    <span class="stat-number" id="stat-benign">0</span>
+                    <span class="stat-label">Benign</span>
+                    <div class="stat-glow"></div>
+                </div>
             </div>
             
-            <div class="modeler-grid">
+            <!-- Recent Scans -->
+            <div class="scans-container animate-fade-in">
+                <div class="scans-header">
+                    <h2><i class="fas fa-list"></i> Recent Scans</h2>
+                    <button class="refresh-btn" onclick="manualRefresh()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                
+                <table class="scans-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Filename</th>
+                            <th>Classification</th>
+                            <th>Client IP</th>
+                            <th>Hash (SHA256)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scans-tbody">
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>No scans yet. Waiting for clients...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ANALYTICS VIEW -->
+        <div class="view-container" id="analyticsView">
+            <div class="analytics-header">
+                <button class="back-btn" onclick="switchView('dashboard')">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </button>
+                <h1><i class="fas fa-chart-line"></i> Analytics & Intelligence</h1>
+            </div>
+            
+            <div class="analytics-grid" id="analyticsGrid">
+                
+                <!-- Daily Analysis Chart -->
+                <div class="chart-container analytics-panel panel-large">
+                    <div class="chart-header">
+                        <h2><i class="fas fa-chart-line"></i> Daily Analysis Trends</h2>
+                        <div class="chart-controls">
+                            <button class="chart-btn active" onclick="setChartDays(7)">7 Days</button>
+                            <button class="chart-btn" onclick="setChartDays(14)">14 Days</button>
+                            <button class="chart-btn" onclick="setChartDays(30)">30 Days</button>
+                        </div>
+                    </div>
+                    <canvas id="dailyScansChart"></canvas>
+                </div>
+                    <canvas id="dailyScansChart"></canvas>
+                </div>
+
+                <!-- Geographic Threat Intelligence Map -->
+                <div class="map-container analytics-panel panel-large">
+                    <div class="map-header">
+                        <h2><i class="fas fa-globe-americas"></i> Global Threat Intelligence Map</h2>
+                        <div class="map-controls">
+                            <div class="map-view-toggle">
+                                <button class="map-btn active" data-view="markers" onclick="switchMapView('markers')">
+                                    <i class="fas fa-map-marker-alt"></i> Markers
+                                </button>
+                                <button class="map-btn" data-view="heatmap" onclick="switchMapView('heatmap')">
+                                    <i class="fas fa-fire"></i> Heatmap
+                                </button>
+                                <button class="map-btn" data-view="choropleth" onclick="switchMapView('choropleth')">
+                                    <i class="fas fa-globe"></i> Choropleth
+                                </button>
+                            </div>
+                            <div class="map-legend">
+                                <span class="legend-item"><span class="legend-dot malware-dot"></span> Malware</span>
+                                <span class="legend-item"><span class="legend-dot suspicious-dot"></span> Suspicious</span>
+                                <span class="legend-item"><span class="legend-dot benign-dot"></span> Benign</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Geographic Context Panel -->
+                    <div class="geo-context-panel" id="geoContext">
+                        <div class="context-stat">
+                            <span class="context-label">Active Regions:</span>
+                            <span class="context-value" id="activeRegions">0</span>
+                        </div>
+                        <div class="context-stat">
+                            <span class="context-label">Hotspot:</span>
+                            <span class="context-value" id="topRegion">None</span>
+                        </div>
+                        <div class="context-stat">
+                            <span class="context-label">Total Threats:</span>
+                            <span class="context-value threat-count" id="geoThreatCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div id="worldMap" style="height: 500px; border-radius: 8px; margin-bottom: 15px;"></div>
+                    
+                    <!-- Timeline Control -->
+                    <div class="map-timeline-control">
+                        <button class="timeline-btn" onclick="replayThreats()" id="replayBtn">
+                            <i class="fas fa-play"></i> Replay Last 24h
+                        </button>
+                        <div class="timeline-info" id="timelineInfo">
+                            Click replay to see threat propagation over time
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Malware Source Distribution -->
+                <div class="chart-container analytics-panel panel-small">
+                    <div class="chart-header">
+                        <h2><i class="fas fa-chart-pie"></i> Malware Source Distribution</h2>
+                    </div>
+                    <div style="max-width: 500px; margin: 0 auto;">
+                        <canvas id="malwareSourceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Threat Vector Correlation Explorer -->
+                <div class="correlation-container analytics-panel panel-large">
+                    <div class="correlation-header">
+                        <h2><i class="fas fa-project-diagram"></i> Threat Vector Correlation Explorer</h2>
+                        <p class="correlation-subtitle">Interactive intelligence map showing relationships between malware families, agents, APIs, and indicators</p>
+                    </div>
+                    <div class="graph-controls">
+                        <button class="graph-btn" onclick="resetGraph()"><i class="fas fa-sync"></i> Reset View</button>
+                        <button class="graph-btn" onclick="centerGraph()"><i class="fas fa-compress"></i> Center</button>
+                        <div class="graph-legend">
+                            <span class="legend-item"><span class="node-sample malware-node"></span> Malware Family</span>
+                            <span class="legend-item"><span class="node-sample agent-node"></span> Agent/System</span>
+                            <span class="legend-item"><span class="node-sample api-node"></span> API Call</span>
+                            <span class="legend-item"><span class="node-sample string-node"></span> Suspicious String</span>
+                        </div>
+                    </div>
+                    <div id="correlationGraph"></div>
+                    <div id="nodeDetails" class="node-details" style="display: none;">
+                        <h3 id="detailsTitle"></h3>
+                        <div id="detailsContent"></div>
+                    </div>
+                </div>
+
+                <!-- Emerging Threat Intelligence Panel -->
+                <div class="eti-container analytics-panel panel-large">
+                    <div class="eti-header">
+                        <h2><i class="fas fa-exclamation-triangle"></i> Emerging Threat Intelligence (ETI)</h2>
+                        <p class="eti-subtitle">Real-time actionable intelligence on active threats and indicators of compromise</p>
+                        <div class="eti-summary">
+                            <span class="eti-badge" id="eti-total">0 Total Threats</span>
+                            <span class="eti-badge recent" id="eti-recent">0 Last 24h</span>
+                        </div>
+                    </div>
+                    
+                    <div class="eti-grid">
+                        <div class="eti-panel">
+                            <h3><i class="fas fa-virus"></i> Top Malware Families</h3>
+                            <div class="eti-subtitle-small">Most active malware families detected</div>
+                            <div id="eti-malware" class="eti-list"></div>
+                        </div>
+                        
+                        <div class="eti-panel">
+                            <h3><i class="fas fa-code"></i> Top Suspicious APIs</h3>
+                            <div class="eti-subtitle-small">Most frequently called malicious APIs</div>
+                            <div id="eti-apis" class="eti-list"></div>
+                        </div>
+                        
+                        <div class="eti-panel">
+                            <h3><i class="fas fa-terminal"></i> Top Malicious Strings</h3>
+                            <div class="eti-subtitle-small">Most common IOC strings and commands</div>
+                            <div id="eti-strings" class="eti-list"></div>
+                        </div>
+                        
+                        <div class="eti-panel">
+                            <h3><i class="fas fa-shield-alt"></i> Top Packers/Obfuscators</h3>
+                            <div class="eti-subtitle-small">Most used evasion techniques</div>
+                            <div id="eti-packers" class="eti-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Predictive Threat Modeler -->
+                <div class="modeler-container analytics-panel panel-large">
+                    <div class="modeler-header">
+                        <h2><i class="fas fa-flask"></i> Predictive Threat Modeler</h2>
+                        <p class="modeler-subtitle">Build hypothetical malware and predict how mAIware would classify it</p>
+                    </div>
+                    
+                    <div class="modeler-grid">
                 <div class="modeler-builder">
                     <h3><i class="fas fa-cogs"></i> Threat Configuration</h3>
                     
@@ -205,96 +447,159 @@
             </div>
         </div>
         
-        <div class="scans-container">
-            <div class="scans-header">
-                <h2>Recent Scans</h2>
-                <button class="refresh-btn" onclick="manualRefresh()">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </button>
-            </div>
-            
-            <table class="scans-table">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Filename</th>
-                        <th>Classification</th>
-                        <th>Client IP</th>
-                        <th>Hash (SHA256)</th>
-                    </tr>
-                </thead>
-                <tbody id="scans-tbody">
-                    <tr>
-                        <td colspan="5" class="empty-state">
-                            <i class="fas fa-inbox"></i>
-                            <p>No scans yet. Waiting for clients...</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- NEW: Daily Analysis Chart -->
-        <div class="chart-container">
-            <div class="chart-header">
-                <h2>Daily Analysis Trends (Last 30 Days)</h2>
-                <div class="chart-controls">
-                    <button class="chart-btn active" onclick="setChartDays(7)">7 Days</button>
-                    <button class="chart-btn" onclick="setChartDays(14)">14 Days</button>
-                    <button class="chart-btn" onclick="setChartDays(30)">30 Days</button>
-                </div>
-            </div>
-            <canvas id="dailyScansChart"></canvas>
-        </div>
-        
-        <!-- NEW: Geographic Distribution Map -->
-        <div class="map-container">
-            <div class="map-header">
-                <h2><i class="fas fa-globe"></i> Geographic Distribution of Detections</h2>
-                <div class="map-legend">
-                    <span class="legend-item"><span class="legend-dot malware-dot"></span> Malware</span>
-                    <span class="legend-item"><span class="legend-dot suspicious-dot"></span> Suspicious</span>
-                    <span class="legend-item"><span class="legend-dot benign-dot"></span> Benign</span>
-                </div>
-            </div>
-            <div id="worldMap" style="height: 500px; border-radius: 8px;"></div>
-        </div>
-        
-        <!-- NEW: Malware Source Distribution Pie Chart -->
-        <div class="chart-container" style="margin-top: 24px;">
-            <div class="chart-header">
-                <h2><i class="fas fa-chart-pie"></i> Malware Source Distribution</h2>
-            </div>
-            <div style="max-width: 500px; margin: 0 auto;">
-                <canvas id="malwareSourceChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- NEW: Threat Vector Correlation Explorer -->
-        <div class="correlation-container">
-            <div class="correlation-header">
-                <h2><i class="fas fa-project-diagram"></i> Threat Vector Correlation Explorer</h2>
-                <p class="correlation-subtitle">Interactive intelligence map showing relationships between malware families, agents, APIs, and indicators</p>
-            </div>
-            <div class="graph-controls">
-                <button class="graph-btn" onclick="resetGraph()"><i class="fas fa-sync"></i> Reset View</button>
-                <button class="graph-btn" onclick="centerGraph()"><i class="fas fa-compress"></i> Center</button>
-                <div class="graph-legend">
-                    <span class="legend-item"><span class="node-sample malware-node"></span> Malware Family</span>
-                    <span class="legend-item"><span class="node-sample agent-node"></span> Agent/System</span>
-                    <span class="legend-item"><span class="node-sample api-node"></span> API Call</span>
-                    <span class="legend-item"><span class="node-sample string-node"></span> Suspicious String</span>
-                </div>
-            </div>
-            <div id="correlationGraph"></div>
-            <div id="nodeDetails" class="node-details" style="display: none;">
-                <h3 id="detailsTitle"></h3>
-                <div id="detailsContent"></div>
             </div>
         </div>
     </div>
     
     <script>
+        // View Switching System
+        function switchView(viewName) {
+            const views = document.querySelectorAll('.view-container');
+            
+            views.forEach(view => {
+                view.classList.remove('active');
+                if (view.id === `${viewName}View`) {
+                    view.classList.add('active');
+                }
+            });
+            
+            currentView = viewName;
+            
+            // Fix map display when switching to analytics view
+            if (viewName === 'analytics') {
+                setTimeout(() => {
+                    if (worldMap) {
+                        worldMap.invalidateSize();
+                    }
+                    // Capture screenshot for preview after charts have rendered
+                    setTimeout(() => {
+                        createAnalyticsMiniview();
+                    }, 1500);
+                }, 100);
+            }
+            
+            // Close graphs preview when switching views
+            document.getElementById('graphsPreview').classList.remove('show');
+            document.getElementById('previewBackdrop').classList.remove('show');
+        }
+        
+        // Side Panel Hover System
+        const sidePanel = document.getElementById('sidePanel');
+        const graphsPreview = document.getElementById('graphsPreview');
+        const previewBackdrop = document.getElementById('previewBackdrop');
+        const homeNavBtn = document.getElementById('homeNavBtn');
+        let previewTimeout;
+        let previewsRendered = false;
+        let currentView = 'dashboard';
+        
+        // Show preview panel on sidebar hover
+        sidePanel.addEventListener('mouseenter', () => {
+            clearTimeout(previewTimeout);
+            previewTimeout = setTimeout(() => {
+                graphsPreview.classList.add('show');
+                previewBackdrop.classList.add('show');
+                
+                // Show/hide home button based on current view
+                if (currentView === 'analytics') {
+                    homeNavBtn.classList.add('visible');
+                } else {
+                    homeNavBtn.classList.remove('visible');
+                }
+            }, 200);
+        });
+        
+        sidePanel.addEventListener('mouseleave', () => {
+            clearTimeout(previewTimeout);
+            setTimeout(() => {
+                if (!graphsPreview.matches(':hover')) {
+                    graphsPreview.classList.remove('show');
+                    previewBackdrop.classList.remove('show');
+                }
+            }, 100);
+        });
+        
+        // Keep preview open when hovering over it
+        graphsPreview.addEventListener('mouseleave', () => {
+            graphsPreview.classList.remove('show');
+            previewBackdrop.classList.remove('show');
+        });
+        
+        // Close preview when clicking backdrop
+        previewBackdrop.addEventListener('click', () => {
+            graphsPreview.classList.remove('show');
+            previewBackdrop.classList.remove('show');
+        });
+        
+        // Create analytics miniview by taking a screenshot
+        let isCapturingSnapshot = false;
+        let hasInitialSnapshot = false;
+        
+        async function createAnalyticsMiniview() {
+            // Simplified - no actual screenshot, just a visual preview
+            hasInitialSnapshot = true;
+        }
+        
+        // Auto-scroll on hover down in analytics view
+        let scrollInterval;
+        const analyticsGrid = document.getElementById('analyticsGrid');
+        
+        if (analyticsGrid) {
+            analyticsGrid.addEventListener('mousemove', (e) => {
+                const rect = analyticsGrid.getBoundingClientRect();
+                const mouseY = e.clientY - rect.top;
+                const triggerZone = 100; // pixels from bottom
+                
+                if (rect.height - mouseY < triggerZone) {
+                    if (!scrollInterval) {
+                        scrollInterval = setInterval(() => {
+                            analyticsGrid.scrollBy({ top: 2, behavior: 'smooth' });
+                        }, 16);
+                    }
+                } else {
+                    if (scrollInterval) {
+                        clearInterval(scrollInterval);
+                        scrollInterval = null;
+                    }
+                }
+            });
+            
+            analyticsGrid.addEventListener('mouseleave', () => {
+                if (scrollInterval) {
+                    clearInterval(scrollInterval);
+                    scrollInterval = null;
+                }
+            });
+        }
+        
+        // Theme Toggle
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+            
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'light') {
+                html.setAttribute('data-theme', '');
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'light');
+            }
+        };
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.getElementById('themeIcon').textContent = '☀️';
+            document.getElementById('themeText').textContent = 'Light';
+        }
+        
         let dailyChart = null;
         let currentChartDays = 30;
         
@@ -580,9 +885,28 @@
         
         let worldMap = null;
         let markerLayer = null;
+        let heatmapLayer = null;
+        let choroplethLayer = null;
         let mapInitialized = false;
         let lastGeoDataHash = '';
         let sourceChart = null;
+        let currentMapView = 'markers';
+        let geoDataCache = null;
+        let replayInterval = null;
+        
+        // Country boundaries for choropleth (simplified)
+        const countryCoordinates = {
+            'United States': { center: [37.0902, -95.7129], weight: 0 },
+            'China': { center: [35.8617, 104.1954], weight: 0 },
+            'United Kingdom': { center: [55.3781, -3.4360], weight: 0 },
+            'Germany': { center: [51.1657, 10.4515], weight: 0 },
+            'France': { center: [46.2276, 2.2137], weight: 0 },
+            'Russia': { center: [61.5240, 105.3188], weight: 0 },
+            'Japan': { center: [36.2048, 138.2529], weight: 0 },
+            'India': { center: [20.5937, 78.9629], weight: 0 },
+            'Brazil': { center: [-14.2350, -51.9253], weight: 0 },
+            'Australia': { center: [-25.2744, 133.7751], weight: 0 }
+        };
         
         function initializeMap() {
             if (mapInitialized) return;
@@ -590,22 +914,341 @@
             try {
                 worldMap = L.map('worldMap', {
                     zoomControl: true,
-                    scrollWheelZoom: true
+                    scrollWheelZoom: true,
+                    preferCanvas: false,
+                    worldCopyJump: true
                 }).setView([20, 0], 2);
                 
                 // Use dark theme tiles
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    attribution: '&copy; OpenStreetMap contributors',
                     subdomains: 'abcd',
-                    maxZoom: 19
+                    maxZoom: 18,
+                    minZoom: 1,
+                    noWrap: false,
+                    bounds: [[-90, -180], [90, 180]]
                 }).addTo(worldMap);
                 
                 markerLayer = L.layerGroup().addTo(worldMap);
                 mapInitialized = true;
+                
+                // Fix map display after initialization
+                setTimeout(() => {
+                    if (worldMap) worldMap.invalidateSize();
+                }, 100);
             } catch (error) {
                 console.error('Failed to initialize map:', error);
             }
         }
+        
+        // Switch between map visualization modes
+        window.switchMapView = function(view) {
+            currentMapView = view;
+            
+            // Update button states
+            document.querySelectorAll('.map-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-view="${view}"]`).classList.add('active');
+            
+            // Reload map with new view
+            if (geoDataCache) {
+                renderMapView(geoDataCache);
+            }
+        };
+        
+        // Render different map views
+        function renderMapView(data) {
+            if (!worldMap) return;
+            
+            // Clear all layers
+            if (markerLayer) markerLayer.clearLayers();
+            if (heatmapLayer) {
+                worldMap.removeLayer(heatmapLayer);
+                heatmapLayer = null;
+            }
+            if (choroplethLayer) {
+                worldMap.removeLayer(choroplethLayer);
+                choroplethLayer = null;
+            }
+            
+            switch (currentMapView) {
+                case 'markers':
+                    renderMarkers(data);
+                    break;
+                case 'heatmap':
+                    renderHeatmap(data);
+                    break;
+                case 'choropleth':
+                    renderChoropleth(data);
+                    break;
+            }
+            
+            updateGeoContext(data);
+        }
+        
+        // Render traditional markers
+        function renderMarkers(data) {
+            data.locations.forEach(location => {
+                const { lat, lng, city, country } = location.location;
+                
+                let markerColor = '#26de81'; // benign
+                if (location.malwareCount > 0) {
+                    markerColor = '#ff3b3b'; // malware
+                } else if (location.suspiciousCount > 0) {
+                    markerColor = '#ffd700'; // suspicious
+                }
+                
+                const markerSize = Math.min(24, Math.max(8, 8 + location.totalScans * 2));
+                
+                const marker = L.circleMarker([lat, lng], {
+                    radius: markerSize / 2,
+                    fillColor: markerColor,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.6
+                });
+                
+                const popupContent = `
+                    <div style="color: var(--text-primary); min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--accent-green); font-size: 1.1rem;">
+                            <i class="fas fa-map-marker-alt" style="color: ${markerColor};"></i>
+                            ${city}, ${country}
+                        </h3>
+                        <p style="margin: 5px 0;"><strong>IP:</strong> ${location.ip}</p>
+                        <p style="margin: 5px 0;"><strong>Total Scans:</strong> ${location.totalScans}</p>
+                        <div style="margin-top: 10px;">
+                            <div><span style="color: #ff3b3b;">●</span> Malware: ${location.malwareCount}</div>
+                            <div><span style="color: #ffd700;">●</span> Suspicious: ${location.suspiciousCount}</div>
+                            <div><span style="color: #39ff14;">●</span> Benign: ${location.benignCount}</div>
+                        </div>
+                        <button onclick="filterByLocation('${country}')" 
+                                style="margin-top: 10px; padding: 5px 10px; background: var(--accent-green); 
+                                       color: var(--bg-primary); border: none; border-radius: 5px; cursor: pointer;">
+                            Filter by ${country}
+                        </button>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                marker.addTo(markerLayer);
+                
+                marker.on('mouseover', function() {
+                    this.setStyle({ fillOpacity: 0.9, opacity: 1 });
+                });
+                marker.on('mouseout', function() {
+                    this.setStyle({ fillOpacity: 0.6, opacity: 0.8 });
+                });
+            });
+        }
+        
+        // Render heatmap overlay
+        function renderHeatmap(data) {
+            const heatData = [];
+            
+            data.locations.forEach(location => {
+                const { lat, lng } = location.location;
+                // Weight by threat severity: malware = 1.0, suspicious = 0.5, benign = 0.2
+                const weight = (location.malwareCount * 1.0 + 
+                               location.suspiciousCount * 0.5 + 
+                               location.benignCount * 0.2) / location.totalScans;
+                
+                // Add multiple points for higher intensity
+                const intensity = Math.ceil(location.totalScans * weight);
+                for (let i = 0; i < intensity; i++) {
+                    heatData.push([lat, lng, weight]);
+                }
+            });
+            
+            heatmapLayer = L.heatLayer(heatData, {
+                radius: 35,
+                blur: 25,
+                maxZoom: 10,
+                max: 1.0,
+                gradient: {
+                    0.0: '#39ff14',  // Green (low threat)
+                    0.3: '#ffd700',  // Yellow
+                    0.6: '#ffa502',  // Orange
+                    0.8: '#ff6348',  // Red
+                    1.0: '#ff3b3b'   // Bright red (high threat)
+                }
+            }).addTo(worldMap);
+        }
+        
+        // Render choropleth (country-level threat shading)
+        function renderChoropleth(data) {
+            // Aggregate threats by country
+            const countryStats = {};
+            data.locations.forEach(location => {
+                const country = location.location.country;
+                if (!countryStats[country]) {
+                    countryStats[country] = { total: 0, malware: 0, suspicious: 0 };
+                }
+                countryStats[country].total += location.totalScans;
+                countryStats[country].malware += location.malwareCount;
+                countryStats[country].suspicious += location.suspiciousCount;
+            });
+            
+            // Find max for normalization
+            const maxThreats = Math.max(...Object.values(countryStats).map(s => 
+                s.malware + s.suspicious * 0.5
+            ));
+            
+            // Draw circles for countries with threat data
+            choroplethLayer = L.layerGroup();
+            
+            Object.entries(countryStats).forEach(([country, stats]) => {
+                if (countryCoordinates[country]) {
+                    const threatScore = (stats.malware + stats.suspicious * 0.5) / maxThreats;
+                    
+                    // Color gradient from green to red
+                    let color;
+                    if (threatScore < 0.2) color = '#39ff14';
+                    else if (threatScore < 0.4) color = '#ffd700';
+                    else if (threatScore < 0.6) color = '#ffa502';
+                    else if (threatScore < 0.8) color = '#ff6348';
+                    else color = '#ff3b3b';
+                    
+                    const circle = L.circle(countryCoordinates[country].center, {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.4,
+                        radius: 500000 * (1 + threatScore * 2),
+                        weight: 2
+                    });
+                    
+                    circle.bindPopup(`
+                        <div style="color: var(--text-primary);">
+                            <h3 style="color: var(--accent-green);">${country}</h3>
+                            <p><strong>Total Threats:</strong> ${stats.total}</p>
+                            <p><strong>Malware:</strong> ${stats.malware}</p>
+                            <p><strong>Suspicious:</strong> ${stats.suspicious}</p>
+                            <p><strong>Threat Level:</strong> ${(threatScore * 100).toFixed(0)}%</p>
+                        </div>
+                    `);
+                    
+                    circle.addTo(choroplethLayer);
+                }
+            });
+            
+            choroplethLayer.addTo(worldMap);
+        }
+        
+        // Update geographic context panel
+        function updateGeoContext(data) {
+            const countries = new Set(data.locations.map(l => l.location.country));
+            document.getElementById('activeRegions').textContent = countries.size;
+            
+            // Find hotspot (country with most threats)
+            const countryThreats = {};
+            data.locations.forEach(loc => {
+                const country = loc.location.country;
+                countryThreats[country] = (countryThreats[country] || 0) + 
+                    loc.malwareCount + loc.suspiciousCount;
+            });
+            
+            const hotspot = Object.entries(countryThreats)
+                .sort((a, b) => b[1] - a[1])[0];
+            
+            if (hotspot) {
+                const percentage = ((hotspot[1] / data.locations.reduce((sum, l) => 
+                    sum + l.malwareCount + l.suspiciousCount, 0)) * 100).toFixed(0);
+                document.getElementById('topRegion').textContent = 
+                    `${hotspot[0]} (${percentage}% of threats)`;
+            }
+            
+            const totalThreats = data.locations.reduce((sum, l) => 
+                sum + l.malwareCount + l.suspiciousCount, 0);
+            document.getElementById('geoThreatCount').textContent = totalThreats;
+        }
+        
+        // Filter dashboard by geographic location
+        window.filterByLocation = function(country) {
+            console.log(`Filtering by country: ${country}`);
+            // This would filter the tables and charts - simplified for demo
+            alert(`Geographic filtering activated for ${country}.\nIn full implementation, this would filter all dashboard data.`);
+        };
+        
+        // Replay threats over last 24 hours
+        window.replayThreats = async function() {
+            const btn = document.getElementById('replayBtn');
+            const info = document.getElementById('timelineInfo');
+            
+            if (replayInterval) {
+                clearInterval(replayInterval);
+                replayInterval = null;
+                btn.innerHTML = '<i class="fas fa-play"></i> Replay Last 24h';
+                info.textContent = 'Replay stopped';
+                if (geoDataCache) renderMapView(geoDataCache);
+                return;
+            }
+            
+            if (!geoDataCache || geoDataCache.locations.length === 0) {
+                info.textContent = 'No data available for replay';
+                return;
+            }
+            
+            btn.innerHTML = '<i class="fas fa-stop"></i> Stop Replay';
+            info.textContent = 'Replaying threat detection timeline...';
+            
+            // Sort locations by timestamp
+            const sortedLocations = [...geoDataCache.locations].sort((a, b) => {
+                const timeA = a.scans[0]?.timestamp || 0;
+                const timeB = b.scans[0]?.timestamp || 0;
+                return new Date(timeA) - new Date(timeB);
+            });
+            
+            if (markerLayer) markerLayer.clearLayers();
+            let index = 0;
+            
+            replayInterval = setInterval(() => {
+                if (index >= sortedLocations.length) {
+                    clearInterval(replayInterval);
+                    replayInterval = null;
+                    btn.innerHTML = '<i class="fas fa-play"></i> Replay Last 24h';
+                    info.textContent = 'Replay complete';
+                    return;
+                }
+                
+                const location = sortedLocations[index];
+                const { lat, lng, city, country } = location.location;
+                
+                let markerColor = location.malwareCount > 0 ? '#ff3b3b' : 
+                                 location.suspiciousCount > 0 ? '#ffd700' : '#39ff14';
+                
+                // Animated marker appearance
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 0,
+                    fillColor: markerColor,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(markerLayer);
+                
+                // Animate marker growth
+                let size = 0;
+                const growInterval = setInterval(() => {
+                    size += 2;
+                    if (size >= 12) {
+                        clearInterval(growInterval);
+                        marker.setStyle({ opacity: 0.8, fillOpacity: 0.6 });
+                    }
+                    marker.setRadius(size / 2);
+                }, 50);
+                
+                marker.bindPopup(`
+                    <div style="color: var(--text-primary);">
+                        <strong>${city}, ${country}</strong><br>
+                        ${location.scans[0]?.filename || 'Unknown file'}
+                    </div>
+                `);
+                
+                info.textContent = `Replaying: ${index + 1}/${sortedLocations.length} - ${city}, ${country}`;
+                index++;
+            }, 800); // Show new threat every 800ms
+        };
         
         async function loadGeoMap() {
             try {
@@ -614,7 +1257,7 @@
                     initializeMap();
                 }
                 
-                if (!markerLayer) return;
+                if (!worldMap) return;
                 
                 const response = await fetch('/api/geo-data');
                 const data = await response.json();
@@ -625,103 +1268,18 @@
                 )).substring(0, 100);
                 
                 // Skip update if data hasn't changed
-                if (currentHash === lastGeoDataHash && markerLayer.getLayers().length > 0) {
+                if (currentHash === lastGeoDataHash && markerLayer && markerLayer.getLayers().length > 0) {
                     return;
                 }
                 lastGeoDataHash = currentHash;
                 
-                // Clear existing markers
-                markerLayer.clearLayers();
+                // Cache data for replay and other features
+                geoDataCache = data;
                 
-                // Add markers for each location
-                data.locations.forEach(location => {
-                    const { lat, lng, city, country } = location.location;
-                    
-                    // Determine marker color based on severity
-                    let markerColor = '#26de81'; // benign (green)
-                    let primaryClassification = 'Benign';
-                    
-                    if (location.malwareCount > 0) {
-                        markerColor = '#ff4757'; // malware (red)
-                        primaryClassification = 'Malware';
-                    } else if (location.suspiciousCount > 0) {
-                        markerColor = '#ffa502'; // suspicious (orange)
-                        primaryClassification = 'Suspicious';
-                    }
-                    
-                    // Calculate marker size based on total scans (min 8, max 24)
-                    const markerSize = Math.min(24, Math.max(8, 8 + location.totalScans * 2));
-                    
-                    // Create custom circular marker
-                    const marker = L.circleMarker([lat, lng], {
-                        radius: markerSize / 2,
-                        fillColor: markerColor,
-                        color: '#fff',
-                        weight: 2,
-                        opacity: 0.8,
-                        fillOpacity: 0.6
-                    });
-                    
-                    // Create popup content
-                    const popupContent = `
-                        <div style="color: #333; min-width: 200px;">
-                            <h3 style="margin: 0 0 10px 0; color: #1a1a1a; font-size: 1.1rem;">
-                                <i class="fas fa-map-marker-alt" style="color: ${markerColor};"></i>
-                                ${city}, ${country}
-                            </h3>
-                            <p style="margin: 5px 0; color: #555;"><strong>IP:</strong> ${location.ip}</p>
-                            <p style="margin: 5px 0; color: #555;"><strong>Total Scans:</strong> ${location.totalScans}</p>
-                            <div style="margin-top: 10px;">
-                                <div style="margin: 3px 0;">
-                                    <span style="color: #ff4757;">●</span> Malware: ${location.malwareCount}
-                                </div>
-                                <div style="margin: 3px 0;">
-                                    <span style="color: #ffa502;">●</span> Suspicious: ${location.suspiciousCount}
-                                </div>
-                                <div style="margin: 3px 0;">
-                                    <span style="color: #26de81;">●</span> Benign: ${location.benignCount}
-                                </div>
-                            </div>
-                            ${location.scans.length > 0 ? `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-                                    <strong>Recent Detections:</strong>
-                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.85rem;">
-                                        ${location.scans.slice(0, 3).map(scan => `
-                                            <li style="margin: 2px 0;">
-                                                ${scan.filename} 
-                                                <span style="color: ${
-                                                    scan.classification === 'Malware' ? '#ff4757' : 
-                                                    scan.classification === 'Suspicious' ? '#ffa502' : '#26de81'
-                                                };">(${scan.classification})</span>
-                                            </li>
-                                        `).join('')}
-                                        ${location.scans.length > 3 ? `<li>...and ${location.scans.length - 3} more</li>` : ''}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                    
-                    marker.bindPopup(popupContent);
-                    marker.addTo(markerLayer);
-                    
-                    // Add hover effect
-                    marker.on('mouseover', function() {
-                        this.setStyle({
-                            fillOpacity: 0.9,
-                            opacity: 1
-                        });
-                    });
-                    
-                    marker.on('mouseout', function() {
-                        this.setStyle({
-                            fillOpacity: 0.6,
-                            opacity: 0.8
-                        });
-                    });
-                });
+                // Render current view
+                renderMapView(data);
                 
-                console.log(`Map updated with ${data.locations.length} locations`);
+                console.log(`Map updated with ${data.locations.length} locations in ${currentMapView} mode`);
                 
             } catch (error) {
                 console.error('Failed to load geo map:', error);

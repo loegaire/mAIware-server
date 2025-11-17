@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mAIware Server Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2.0">
     <!-- Add Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <!-- Add Leaflet.js for maps -->
@@ -15,11 +15,33 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+        <span class="icon" id="themeIcon">🌙</span>
+        <span id="themeText">Dark</span>
+    </button>
+
     <div class="container">
         <header>
             <h1><i class="fas fa-shield-virus"></i> mAIware Server</h1>
             <p class="subtitle">Real-time Malware Analysis Dashboard</p>
         </header>
+        
+        <!-- Real-time Threat Ticker -->
+        <div class="threat-ticker-container">
+            <div class="ticker-label">
+                <i class="fas fa-broadcast-tower"></i>
+                <span>LIVE THREAT FEED</span>
+            </div>
+            <div class="threat-ticker" id="threat-ticker">
+                <div class="ticker-content" id="ticker-content">
+                    <span class="ticker-item">System ready - Monitoring for threats...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Toast Container -->
+        <div id="notification-container" class="notification-container"></div>
         
         <div class="stats-grid" id="stats-grid">
             <div class="stat-card info">
@@ -276,16 +298,125 @@
         let dailyChart = null;
         let currentChartDays = 30;
         
+        // Notification and Animation System
+        const notificationQueue = [];
+        let isShowingNotification = false;
+        
+        function showThreatNotification(scan) {
+            const container = document.getElementById('notification-container');
+            
+            const classColor = 
+                scan.classification === 'Malware' ? '#ff4757' :
+                scan.classification === 'Suspicious' ? '#ffa502' : '#26de81';
+            
+            const icon = 
+                scan.classification === 'Malware' ? 'fa-skull-crossbones' :
+                scan.classification === 'Suspicious' ? 'fa-exclamation-triangle' : 'fa-check-circle';
+            
+            const notification = document.createElement('div');
+            notification.className = 'threat-notification';
+            notification.style.borderLeftColor = classColor;
+            notification.innerHTML = `
+                <div class="notification-icon" style="color: ${classColor};">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">
+                        <strong>${scan.classification}</strong> detected
+                    </div>
+                    <div class="notification-details">
+                        ${scan.detected_filename}
+                        ${scan.malware_family ? ` - ${scan.malware_family}` : ''}
+                    </div>
+                    <div class="notification-meta">
+                        <i class="fas fa-desktop"></i> ${scan.systemInfo?.hostname || scan.clientIp || 'Unknown'}
+                    </div>
+                </div>
+                <div class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => notification.classList.add('show'), 10);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 8000);
+        }
+        
+        function addToThreatTicker(scan) {
+            const ticker = document.getElementById('ticker-content');
+            const timestamp = new Date(scan.serverTimestamp).toLocaleTimeString();
+            
+            const classColor = 
+                scan.classification === 'Malware' ? '#ff4757' :
+                scan.classification === 'Suspicious' ? '#ffa502' : '#26de81';
+            
+            const tickerItem = document.createElement('span');
+            tickerItem.className = 'ticker-item';
+            tickerItem.style.color = classColor;
+            tickerItem.innerHTML = `
+                <i class="fas fa-circle"></i>
+                [${timestamp}] ${scan.classification}: ${scan.detected_filename}
+                ${scan.malware_family ? `(${scan.malware_family})` : ''}
+                on ${scan.systemInfo?.hostname || scan.clientIp || 'Unknown'}
+            `;
+            
+            ticker.appendChild(tickerItem);
+            
+            // Keep only last 10 items
+            while (ticker.children.length > 10) {
+                ticker.removeChild(ticker.firstChild);
+            }
+        }
+        
+        function animateStatCard(elementId, newValue) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const currentValue = parseInt(element.textContent) || 0;
+            if (newValue > currentValue) {
+                // Pulse animation
+                element.parentElement.classList.add('stat-pulse');
+                setTimeout(() => element.parentElement.classList.remove('stat-pulse'), 600);
+                
+                // Animate number increment
+                const duration = 500;
+                const steps = 20;
+                const increment = (newValue - currentValue) / steps;
+                let current = currentValue;
+                let step = 0;
+                
+                const interval = setInterval(() => {
+                    step++;
+                    current += increment;
+                    element.textContent = Math.round(current);
+                    
+                    if (step >= steps) {
+                        element.textContent = newValue;
+                        clearInterval(interval);
+                    }
+                }, duration / steps);
+            } else {
+                element.textContent = newValue;
+            }
+        }
+        
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');
                 const stats = await response.json();
                 
-                document.getElementById('stat-clients').textContent = stats.activeClients;
-                document.getElementById('stat-total').textContent = stats.totalScans;
-                document.getElementById('stat-malware').textContent = stats.malwareCount;
-                document.getElementById('stat-suspicious').textContent = stats.suspiciousCount;
-                document.getElementById('stat-benign').textContent = stats.benignCount;
+                animateStatCard('stat-clients', stats.activeClients);
+                animateStatCard('stat-total', stats.totalScans);
+                animateStatCard('stat-malware', stats.malwareCount);
+                animateStatCard('stat-suspicious', stats.suspiciousCount);
+                animateStatCard('stat-benign', stats.benignCount);
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }
@@ -1138,6 +1269,13 @@
                 console.log('Connected to server for real-time updates');
             } else if (data.type === 'new-scan') {
                 console.log('New scan received:', data.scan.detected_filename);
+                
+                // Show notification toast
+                showThreatNotification(data.scan);
+                
+                // Add to threat ticker
+                addToThreatTicker(data.scan);
+                
                 // Reload all data when new scan arrives
                 loadDataWithoutMap();
                 // Update map less frequently (only if it's been more than 10 seconds)
@@ -1161,6 +1299,54 @@
         window.manualRefresh = function() {
             loadData();
         };
+    </script>
+    
+    <!-- Theme Toggle Script -->
+    <script>
+        // Theme Toggle Functionality
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? '' : 'light';
+            
+            if (newTheme) {
+                html.setAttribute('data-theme', newTheme);
+            } else {
+                html.removeAttribute('data-theme');
+            }
+            localStorage.setItem('theme', newTheme || 'dark');
+            
+            // Update button icon and text
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+            
+            if (newTheme === 'light') {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light';
+            } else {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark';
+            }
+        };
+        
+        // Load saved theme on page load
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+            
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+            
+            if (savedTheme === 'light') {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light';
+            } else {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark';
+            }
+        })();
     </script>
 </body>
 </html>

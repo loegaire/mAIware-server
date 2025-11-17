@@ -1,0 +1,175 @@
+/* ============================================
+   mAIware Dashboard - Ministry Theme
+   Black + Green with Yellow & Red accents
+   ============================================ */
+
+:root {
+    --bg-primary: #0a0e14;
+    --bg-secondary: #1a1f2e;
+    --bg-card: #1e2433;
+    --bg-hover: #252b3d;
+    --text-primary: #e8f0e8;
+    --text-secondary: #9ca3af;
+    --accent-green: #39ff14;
+    --accent-green-dim: #2ed60f;
+    --accent-yellow: #ffd700;
+    --accent-red: #ff3b3b;
+    --accent-red-dim: #cc2f2f;
+    --border-color: #2d3748;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --success-glow: rgba(57, 255, 20, 0.3);
+    --danger-glow: rgba(255, 59, 59, 0.3);
+    --warning-glow: rgba(255, 215, 0, 0.3);
+}
+
+[data-theme="light"] {
+    --bg-primary: #f0f4f0;
+    --bg-secondary: #ffffff;
+    --bg-card: #fafafa;
+    --bg-hover: #e8f5e8;
+    --text-primary: #1a1f2e;
+    --text-secondary: #4a5568;
+    --accent-green: #2ed60f;
+    --accent-green-dim: #27b00c;
+    --accent-yellow: #cc9a00;
+    --accent-red: #dc2626;
+    --accent-red-dim: #b91c1c;
+    --border-color: #d1d5db;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --success-glow: rgba(46, 214, 15, 0.2);
+    --danger-glow: rgba(220, 38, 38, 0.2);
+    --warning-glow: rgba(204, 154, 0, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    color: var(--accent-green);
+    text-shadow: 0 0 20px var(--success-glow), 2px 2px 4px var(--shadow-color);
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+header .subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--bg-card);
+    border: 2px solid var(--accent-green);
+    border-radius: 50px;
+    padding: 10px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    font-weight: 600;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-hover);
+    box-shadow: 0 0 20px var(--success-glow);
+    transform: translateY(-2px);
+}
+
+.theme-toggle .icon {
+    font-size: 1.2rem;
+}
+
+/* Threat Ticker */
+.threat-ticker-container {
+    background: var(--bg-secondary);
+    border: 2px solid var(--accent-green);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 30px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px var(--shadow-color), 0 0 20px var(--success-glow);
+}
+
+.ticker-label {
+    color: var(--accent-green);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-shadow: 0 0 10px var(--success-glow);
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--accent-red), var(--accent-red-dim));
+    border-radius: 6px;
+    box-shadow: 0 2px 8px var(--danger-glow);
+}
+
+.threat-ticker {
+    display: flex;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.threat-item {
+    display: inline-block;
+    margin-right: 40px;
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border-radius: 20px;
+    border-left: 3px solid;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.threat-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.threat-item.malware {
+    border-left-color: var(--accent-red);
+    color: var(--accent-red);
+    box-shadow: 0 0 10px var(--danger-glow);
+}
+
+.threat-item.suspicious {
+    border-left-color: var(--accent-yellow);
+    color: var(--accent-yellow);
+    box-shadow: 0 0 10px var(--warning-glow);
+{ _ble_edit_exec_gexec__save_lastarg "$@"; } 4>&1 5>&2 &>/dev/null

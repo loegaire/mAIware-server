@@ -812,10 +812,18 @@ app.get('/', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`🖥️  mAIware Server Dashboard running on http://localhost:${PORT}`);
     console.log(`📊 Dashboard: http://localhost:${PORT}`);
     console.log(`🔌 API endpoint: http://localhost:${PORT}/api/submit-scan`);
+    
+    // Auto-open browser (using dynamic import for ES module)
+    try {
+        const open = (await import('open')).default;
+        await open(`http://localhost:${PORT}`);
+    } catch (err) {
+        console.log('Could not auto-open browser. Please open manually.');
+    }
 });
 
 // Cleanup old client entries every hour

@@ -314,9 +314,10 @@
                     const timestamp = new Date(scan.serverTimestamp).toLocaleString();
                     const hash = scan.file_hashes?.sha256 || 'N/A';
                     const hashShort = hash.length > 16 ? (hash.substring(0, 16) + '...') : hash;
-                    const classification = scan.classification || 'Unknown';
-                    const badgeClass = classification.toLowerCase();
-                    const nonPeTag = scan.is_pe === false ? '<span class="badge non-pe" title="Non-PE file">Non-PE</span>' : '';
+                    const isNonPe = scan.is_pe === false;
+                    const classification = isNonPe ? 'Non-PE' : (scan.classification || 'Unknown');
+                    const badgeClass = isNonPe ? 'non-pe' : classification.toLowerCase();
+                    const nonPeTag = isNonPe ? '<span class="badge non-pe" title="Non-PE file">Non-PE</span>' : '';
                     return `
                         <tr>
                             <td>${timestamp}</td>

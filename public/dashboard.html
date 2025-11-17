@@ -313,14 +313,14 @@
                 tbody.innerHTML = data.scans.map(scan => {
                     const timestamp = new Date(scan.serverTimestamp).toLocaleString();
                     const hash = scan.file_hashes?.sha256 || 'N/A';
-                    const hashShort = hash.substring(0, 16) + '...';
+                    const hashShort = hash.length > 16 ? (hash.substring(0, 16) + '...') : hash;
                     const classification = scan.classification || 'Unknown';
                     const badgeClass = classification.toLowerCase();
-                    
+                    const nonPeTag = scan.is_pe === false ? '<span class="badge non-pe" title="Non-PE file">Non-PE</span>' : '';
                     return `
                         <tr>
                             <td>${timestamp}</td>
-                            <td>${scan.detected_filename}</td>
+                            <td>${scan.detected_filename} ${nonPeTag}</td>
                             <td><span class="badge ${badgeClass}">${classification}</span></td>
                             <td>${scan.systemInfo?.ip || scan.clientIp || 'Unknown'}</td>
                             <td class="hash" title="${hash}">${hashShort}</td>

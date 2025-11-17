@@ -52,23 +52,46 @@ app.get('/api/events', (req, res) => {
 // Submit scan result from client
 app.post('/api/submit-scan', (req, res) => {
     try {
-        const scanData = req.body;
-        
-        // Validate required fields
-        if (!scanData.detected_filename || !scanData.classification) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        const incoming = req.body;
+
+        // Basic validation (allow minimal non-PE payloads that omit some fields)
+        if (!incoming || !incoming.detected_filename) {
+            return res.status(400).json({ error: 'Missing detected_filename' });
         }
-        
+
+        // Normalize / sanitize scan object
+        const scanData = { ...incoming };
+        const isPe = scanData.is_pe !== undefined ? !!scanData.is_pe : true; // default true if absent
+
+        // If non-PE: enforce benign, remove PE-only fields
+        if (!isPe) {
+            scanData.classification = 'Benign';
+            delete scanData.malware_family;
+            if (scanData.key_findings) {
+                delete scanData.key_findings.api_imports;
+                delete scanData.key_findings.key_strings;
+                delete scanData.key_findings.section_entropy;
+                delete scanData.key_findings.packer_detected;
+                delete scanData.key_findings.signature;
+            }
+        } else {
+            // Ensure classification exists for PE paths
+            if (!scanData.classification) {
+                scanData.classification = 'Benign';
+            }
+        }
+
         // Add server metadata
         const scanEntry = {
             ...scanData,
             serverTimestamp: new Date().toISOString(),
             scanId: `scan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            clientIp: req.ip || req.connection.remoteAddress
+            clientIp: req.ip || req.connection.remoteAddress,
+            is_pe: isPe
         };
-        
-        // Store result
-        scanResults.unshift(scanEntry); // Add to beginning
+
+        // Store result (most recent first)
+        scanResults.unshift(scanEntry);
         
         // Keep only last 1000 scans
         if (scanResults.length > 1000) {
@@ -82,7 +105,7 @@ app.post('/api/submit-scan', (req, res) => {
             totalScans: (clients.get(clientId)?.totalScans || 0) + 1
         });
         
-        console.log(`✅ Received scan: ${scanData.detected_filename} → ${scanData.classification}`);
+        console.log(`✅ Received scan: ${scanEntry.detected_filename} → ${scanEntry.classification}${scanEntry.is_pe ? '' : ' (non-PE)'}`);
         
         // Notify all connected dashboard clients via SSE
         const notification = JSON.stringify({ 

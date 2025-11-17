@@ -659,6 +659,7 @@ h1 {
 .badge.malware { background: #ff4757; color: white; }
 .badge.suspicious { background: #ffa502; color: white; }
 .badge.benign { background: #26de81; color: white; }
+.badge.non-pe { background: #4b5563; color: #fff; }
 
 .hash {
     font-family: 'Courier New', monospace;

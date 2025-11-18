@@ -25,6 +25,11 @@
         <span id="themeText">Dark</span>
     </button>
 
+    <!-- Back to Top Button -->
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
     <!-- Preview Backdrop -->
     <div class="preview-backdrop" id="previewBackdrop"></div>
 
@@ -505,6 +510,29 @@
     </div>
     
     <script>
+        // Helper function to get CSS variable values dynamically for theming
+        function getCSSVar(varName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        }
+
+        // Back to Top Button
+        const backToTopBtn = document.getElementById('backToTop');
+        
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
         // View Switching System
         function switchView(viewName) {
             const views = document.querySelectorAll('.view-container');
@@ -894,7 +922,7 @@
                         plugins: {
                             legend: {
                                 labels: {
-                                    color: '#e0e0e0',
+                                    color: getCSSVar('--chart-text-color') || '#e0e0e0',
                                     font: { size: 12 }
                                 }
                             },
@@ -909,22 +937,22 @@
                         scales: {
                             x: {
                                 ticks: { 
-                                    color: '#888',
+                                    color: getCSSVar('--chart-text-color') || '#888',
                                     maxRotation: 45,
                                     minRotation: 45
                                 },
                                 grid: { 
-                                    color: 'rgba(255, 255, 255, 0.05)' 
+                                    color: getCSSVar('--chart-grid-color') || 'rgba(255, 255, 255, 0.05)' 
                                 }
                             },
                             y: {
                                 beginAtZero: true,
                                 ticks: { 
-                                    color: '#888',
+                                    color: getCSSVar('--chart-text-color') || '#888',
                                     stepSize: 1
                                 },
                                 grid: { 
-                                    color: 'rgba(255, 255, 255, 0.05)' 
+                                    color: getCSSVar('--chart-grid-color') || 'rgba(255, 255, 255, 0.05)' 
                                 }
                             }
                         }
@@ -1381,7 +1409,7 @@
                             legend: {
                                 position: 'bottom',
                                 labels: {
-                                    color: '#e0e0e0',
+                                    color: getCSSVar('--chart-text-color') || '#e0e0e0',
                                     font: { size: 12 },
                                     padding: 15
                                 }

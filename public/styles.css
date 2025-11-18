@@ -2309,3 +2309,146 @@ h1 {
 .node-details li {
     margin: 4px 0;
 }
+
+/* ========================================
+   LIGHT THEME CONTRAST FIXES
+   ======================================== */
+
+/* Fix 1 & 2: Analytics preview backgrounds - lighter for better green contrast */
+[data-theme="light"] .eti-container {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.05) 0%, rgba(255, 165, 2, 0.05) 100%);
+    border-color: rgba(255, 71, 87, 0.2);
+}
+
+[data-theme="light"] .modeler-container {
+    background: linear-gradient(135deg, rgba(90, 156, 248, 0.05) 0%, rgba(38, 222, 129, 0.05) 100%);
+    border-color: rgba(90, 156, 248, 0.2);
+}
+
+/* Fix 3: Theme toggle button text - darker for contrast */
+[data-theme="light"] .theme-toggle {
+    color: #1a1f2e;
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(46, 214, 15, 0.4);
+}
+
+/* Fix 4: Daily Analysis chart - darker labels and grid (handled in JS via CSS vars) */
+[data-theme="light"] {
+    --chart-text-color: #374151;
+    --chart-grid-color: rgba(0, 0, 0, 0.12);
+}
+
+:root {
+    --chart-text-color: #9ca3af;
+    --chart-grid-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Fix 5: Chart container labels - darker in light theme */
+[data-theme="light"] .chart-header h2,
+[data-theme="light"] .chart-header {
+    color: #1a1f2e;
+}
+
+/* Fix 6: Threat Vector Correlation header - darker */
+[data-theme="light"] .correlation-header h2 {
+    color: #1a1f2e;
+}
+
+[data-theme="light"] .correlation-subtitle {
+    color: #4a5568;
+}
+
+/* Fix 7: ETI subtitle and summary - darker for better contrast */
+[data-theme="light"] .eti-subtitle {
+    color: #4a5568;
+}
+
+[data-theme="light"] .eti-summary {
+    color: #374151;
+}
+
+/* Fix 8: Prediction labels in threat modeler - darker */
+[data-theme="light"] .modeler-subtitle {
+    color: #4a5568;
+}
+
+[data-theme="light"] .modeler-field label {
+    color: #374151;
+}
+
+[data-theme="light"] .modeler-hint {
+    color: #6b7280;
+}
+
+/* Fix 9: Analytics preview backgrounds - much lighter for green text visibility */
+[data-theme="light"] .preview-box {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(46, 214, 15, 0.3);
+}
+
+/* Fix 10: ETI item text - lighter for better readability */
+[data-theme="light"] .eti-count {
+    color: #6b7280;
+}
+
+[data-theme="light"] .eti-details {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .eti-name {
+    color: #1f2937;
+}
+
+/* Fix 11: Make ETI details much more visible in light theme */
+[data-theme="light"] .eti-details {
+    color: #5a9cf8;
+    font-weight: 500;
+}
+
+/* Fix 12: Threat ticker text visibility in light theme */
+[data-theme="light"] .ticker-item {
+    color: #374151;
+    font-weight: 500;
+}
+
+/* Back to Top Button */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--accent-green), var(--accent-green-dim));
+    border: 2px solid var(--accent-green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px var(--success-glow);
+    color: #000;
+    font-size: 1.2rem;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    transform: translateY(-5px) scale(1.1);
+    box-shadow: 0 6px 30px var(--success-glow);
+}
+
+.back-to-top:active {
+    transform: translateY(-2px) scale(1.05);
+}
+
+[data-theme="light"] .back-to-top {
+    background: linear-gradient(135deg, #2ed60f, #27b00c);
+    color: #fff;
+}

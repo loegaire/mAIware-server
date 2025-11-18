@@ -95,9 +95,9 @@ body > * {
     top: 0;
     height: 100vh;
     width: 70px;
-    background: rgba(10, 10, 10, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-right: 1px solid rgba(57, 255, 20, 0.2);
     box-shadow: 0 0 30px rgba(57, 255, 20, 0.1);
     display: flex;
@@ -149,9 +149,9 @@ body > * {
     left: 70px;
     top: 50%;
     transform: translateY(-50%) translateX(-100%);
-    background: rgba(10, 10, 10, 0.85);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(57, 255, 20, 0.3);
     border-left: none;
     border-radius: 0 12px 12px 0;
@@ -162,10 +162,10 @@ body > * {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 5px 0 40px rgba(57, 255, 20, 0.15), 0 0 0 1px rgba(57, 255, 20, 0.2);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, visibility 0.3s;
+    box-shadow: 5px 0 40px rgba(57, 255, 20, 0.15);
     z-index: 9998;
-    backdrop-filter: blur(10px);
+    will-change: transform, opacity;
 }
 
 .graphs-preview::-webkit-scrollbar {
@@ -684,9 +684,9 @@ body > * {
     top: 20px;
     right: 20px;
     z-index: 10000;
-    background: rgba(15, 15, 15, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(57, 255, 20, 0.3);
     border-radius: 50px;
     padding: 10px 20px;

@@ -134,6 +134,10 @@ app.post('/api/submit-scan', (req, res) => {
         console.log(`✅ Received scan from ${scanData.agent_id || clientId}: ${scanEntry.detected_filename} → ${scanEntry.classification}${scanEntry.is_pe ? '' : ' (non-PE)'}`);
         console.log(`   Client IP: ${clientId}, Total scans in DB: ${scanResults.length}`);
         
+        // Invalidate caches on new scan
+        noisyAgentsCache = null;
+        correlationsCache = null;
+        
         // Notify all connected dashboard clients via SSE
         const notification = JSON.stringify({ 
             type: 'new-scan', 
@@ -309,19 +313,30 @@ app.get('/api/malware-sources', (req, res) => {
     }
 });
 
+// Cache for noisy-agents computation
+let noisyAgentsCache = null;
+let noisyAgentsCacheTime = 0;
+const NOISY_AGENTS_CACHE_TTL = 30000; // 30 seconds
+
 // API: Noisy Agents Over Time (Graph 2)
 app.get('/api/noisy-agents', (req, res) => {
     try {
-        // Get top 5 agents by threat count
-        const agentCounts = {};
-        scanResults.forEach(scan => {
-            const agentId = scan.agent_id || 'Unknown';
-            if (scan.classification === 'Suspicious' || scan.classification === 'Malware') {
-                agentCounts[agentId] = (agentCounts[agentId] || 0) + 1;
-            }
-        });
+        // Return cached result if still valid
+        const now = Date.now();
+        if (noisyAgentsCache && (now - noisyAgentsCacheTime) < NOISY_AGENTS_CACHE_TTL) {
+            return res.json(noisyAgentsCache);
+        }
         
-        const topAgents = Object.entries(agentCounts)
+        // Get top 5 agents by threat count (optimized with Map)
+        const agentCounts = new Map();
+        for (const scan of scanResults) {
+            if (scan.classification === 'Suspicious' || scan.classification === 'Malware') {
+                const agentId = scan.agent_id || 'Unknown';
+                agentCounts.set(agentId, (agentCounts.get(agentId) || 0) + 1);
+            }
+        }
+        
+        const topAgents = Array.from(agentCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
             .map(([id]) => id);
@@ -330,24 +345,31 @@ app.get('/api/noisy-agents', (req, res) => {
         const days = 14;
         const dates = [];
         const agentData = {};
+        const dateStrings = [];
         
+        // Pre-compute date strings for comparison
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
             dates.push(`${date.getMonth() + 1}/${date.getDate()}`);
+            dateStrings.push(date.toDateString());
+        }
+        
+        // Initialize agent data arrays
+        topAgents.forEach(agentId => {
+            agentData[agentId] = new Array(days).fill(0);
+        });
+        
+        // Single pass through scans - O(n) instead of O(n*days*agents)
+        for (const scan of scanResults) {
+            if (scan.classification !== 'Suspicious' && scan.classification !== 'Malware') continue;
+            if (!topAgents.includes(scan.agent_id)) continue;
             
-            topAgents.forEach(agentId => {
-                if (!agentData[agentId]) agentData[agentId] = [];
-                
-                const count = scanResults.filter(scan => {
-                    const scanDate = new Date(scan.timestamp);
-                    return scan.agent_id === agentId &&
-                           scanDate.toDateString() === date.toDateString() &&
-                           (scan.classification === 'Suspicious' || scan.classification === 'Malware');
-                }).length;
-                
-                agentData[agentId].push(count);
-            });
+            const scanDateStr = new Date(scan.timestamp).toDateString();
+            const dayIndex = dateStrings.indexOf(scanDateStr);
+            if (dayIndex !== -1) {
+                agentData[scan.agent_id][dayIndex]++;
+            }
         }
         
         const agents = topAgents.map(agentId => ({
@@ -355,7 +377,13 @@ app.get('/api/noisy-agents', (req, res) => {
             counts: agentData[agentId]
         }));
         
-        res.json({ dates, agents });
+        const result = { dates, agents };
+        
+        // Cache the result
+        noisyAgentsCache = result;
+        noisyAgentsCacheTime = Date.now();
+        
+        res.json(result);
     } catch (error) {
         console.error('Noisy agents error:', error);
         res.status(500).json({ error: 'Failed to get noisy agents data' });
@@ -613,12 +641,25 @@ app.get('/api/geo-data', (req, res) => {
     }
 });
 
+// Cache for threat correlations
+let correlationsCache = null;
+let correlationsCacheTime = 0;
+const CORRELATIONS_CACHE_TTL = 60000; // 60 seconds
+
 // Get threat vector correlations for the interactive graph
 app.get('/api/threat-correlations', (req, res) => {
     try {
+        // Return cached result if still valid
+        const now = Date.now();
+        if (correlationsCache && (now - correlationsCacheTime) < CORRELATIONS_CACHE_TTL) {
+            return res.json(correlationsCache);
+        }
+        
         const nodes = [];
         const links = [];
         const nodeMap = new Map();
+        const nodeIndexMap = new Map(); // Fast node lookup by id
+        const linkSet = new Set(); // Dedupe links efficiently
         let nodeId = 0;
         
         // Helper to get or create node
@@ -626,17 +667,28 @@ app.get('/api/threat-correlations', (req, res) => {
             const key = `${type}:${label}`;
             if (!nodeMap.has(key)) {
                 const id = nodeId++;
-                nodeMap.set(key, id);
-                nodes.push({
+                const node = {
                     id,
                     label,
                     type,
                     group,
                     count: 0,
                     details: []
-                });
+                };
+                nodeMap.set(key, id);
+                nodeIndexMap.set(id, node);
+                nodes.push(node);
             }
             return nodeMap.get(key);
+        };
+        
+        // Helper to add link with deduplication
+        const addLink = (source, target, type, strength) => {
+            const linkKey = `${source}-${target}-${type}`;
+            if (!linkSet.has(linkKey)) {
+                linkSet.add(linkKey);
+                links.push({ source, target, type, strength });
+            }
         };
         
         // Process all scans and build relationships
@@ -650,7 +702,7 @@ app.get('/api/threat-correlations', (req, res) => {
             
             // Get or create malware family node
             const familyId = getNodeId(family, 'malware', 1);
-            const familyNode = nodes.find(n => n.id === familyId);
+            const familyNode = nodeIndexMap.get(familyId);
             familyNode.count++;
             familyNode.details.push(scan.detected_filename);
             
@@ -669,60 +721,43 @@ app.get('/api/threat-correlations', (req, res) => {
             
             // Create agent node and link
             const agentNodeId = getNodeId(agentId, 'agent', 2);
-            const agentNode = nodes.find(n => n.id === agentNodeId);
+            const agentNode = nodeIndexMap.get(agentNodeId);
             agentNode.count++;
-            links.push({
-                source: familyId,
-                target: agentNodeId,
-                type: 'detected_by',
-                strength: 2
-            });
+            addLink(familyId, agentNodeId, 'detected_by', 2);
             
-            // Process API imports
-            const apis = scan.key_findings?.api_imports || [];
-            apis.forEach(api => {
+            // Process API imports (limit to reduce clutter)
+            const apis = (scan.key_findings?.api_imports || []).slice(0, 5);
+            for (const api of apis) {
                 const apiId = getNodeId(api, 'api', 3);
-                const apiNode = nodes.find(n => n.id === apiId);
+                const apiNode = nodeIndexMap.get(apiId);
                 apiNode.count++;
                 
                 // Track API frequency for this family
                 const apiCount = familyData.apis.get(api) || 0;
                 familyData.apis.set(api, apiCount + 1);
                 
-                // Link malware to API (avoid duplicates)
-                if (!links.find(l => l.source === familyId && l.target === apiId)) {
-                    links.push({
-                        source: familyId,
-                        target: apiId,
-                        type: 'uses_api',
-                        strength: 1
-                    });
-                }
-            });
+                addLink(familyId, apiId, 'uses_api', 1);
+            }
             
-            // Process suspicious strings
-            const strings = scan.key_findings?.key_strings || [];
-            strings.slice(0, 3).forEach(str => { // Limit to top 3 to avoid clutter
+            // Process suspicious strings (limit to top 3)
+            const strings = (scan.key_findings?.key_strings || []).slice(0, 3);
+            for (const str of strings) {
                 const strId = getNodeId(str.substring(0, 50), 'string', 4);
-                const strNode = nodes.find(n => n.id === strId);
+                const strNode = nodeIndexMap.get(strId);
                 strNode.count++;
                 
                 const strCount = familyData.strings.get(str) || 0;
                 familyData.strings.set(str, strCount + 1);
                 
-                if (!links.find(l => l.source === familyId && l.target === strId)) {
-                    links.push({
-                        source: familyId,
-                        target: strId,
-                        type: 'contains_string',
-                        strength: 1
-                    });
-                }
-            });
+                addLink(familyId, strId, 'contains_string', 1);
+            }
         });
         
         // Create correlations between malware families that share common traits
-        const familyNodes = nodes.filter(n => n.type === 'malware');
+        // Limit to prevent O(n²) explosion with many families
+        const familyNodes = nodes.filter(n => n.type === 'malware').slice(0, 20);
+        
+        // Use optimized Set intersection instead of filter
         for (let i = 0; i < familyNodes.length; i++) {
             for (let j = i + 1; j < familyNodes.length; j++) {
                 const family1 = familyNodes[i].label;
@@ -730,19 +765,26 @@ app.get('/api/threat-correlations', (req, res) => {
                 const data1 = malwareFamilies.get(family1);
                 const data2 = malwareFamilies.get(family2);
                 
-                // Check for shared agents
-                const sharedAgents = [...data1.agents].filter(a => data2.agents.has(a));
+                // Fast Set intersection count
+                let sharedCount = 0;
+                for (const agent of data1.agents) {
+                    if (data2.agents.has(agent)) sharedCount++;
+                }
                 
-                if (sharedAgents.length > 0) {
-                    links.push({
-                        source: familyNodes[i].id,
-                        target: familyNodes[j].id,
-                        type: 'correlated_with',
-                        strength: sharedAgents.length
-                    });
+                if (sharedCount > 0) {
+                    addLink(
+                        familyNodes[i].id,
+                        familyNodes[j].id,
+                        'correlated_with',
+                        sharedCount
+                    );
                 }
             }
         }
+        
+        // Cache the result
+        correlationsCache = { nodes, links };
+        correlationsCacheTime = Date.now();
         
         res.json({
             nodes,

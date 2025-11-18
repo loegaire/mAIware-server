@@ -548,11 +548,12 @@
             
             // Fix map display when switching to analytics view
             if (viewName === 'analytics') {
+                loadAnalytics(); // Lazy load analytics components
                 setTimeout(() => {
                     if (worldMap) {
                         worldMap.invalidateSize();
                     }
-                    // Capture screenshot for preview after charts have rendered
+                    // Capture screenshot for preview after charts has rendered
                     setTimeout(() => {
                         createAnalyticsMiniview();
                     }, 1500);
@@ -858,16 +859,22 @@
                 
                 const ctx = document.getElementById('dailyScansChart');
                 
-                // Destroy existing chart if it exists
-                if (dailyChart) {
-                    dailyChart.destroy();
-                }
-                
                 // Format dates for display (MM/DD)
                 const labels = data.days.map(day => {
                     const date = new Date(day.date);
                     return `${date.getMonth() + 1}/${date.getDate()}`;
                 });
+                
+                // Reuse existing chart if it exists
+                if (dailyChart) {
+                    dailyChart.data.labels = labels;
+                    dailyChart.data.datasets[0].data = data.days.map(d => d.total);
+                    dailyChart.data.datasets[1].data = data.days.map(d => d.malware);
+                    dailyChart.data.datasets[2].data = data.days.map(d => d.suspicious);
+                    dailyChart.data.datasets[3].data = data.days.map(d => d.benign);
+                    dailyChart.update('none'); // Update without animation
+                    return;
+                }
                 
                 dailyChart = new Chart(ctx, {
                     type: 'line',
@@ -1374,11 +1381,6 @@
                 
                 const ctx = document.getElementById('malwareSourceChart');
                 
-                // Destroy existing chart if it exists
-                if (sourceChart) {
-                    sourceChart.destroy();
-                }
-                
                 const labels = data.sources.map(s => s.source);
                 const counts = data.sources.map(s => s.count);
                 
@@ -1390,6 +1392,14 @@
                     '#a8dadc', // Internal Network - light blue
                     '#95a5a6'  // Unknown - gray
                 ];
+                
+                // Reuse existing chart if it exists
+                if (sourceChart) {
+                    sourceChart.data.labels = labels;
+                    sourceChart.data.datasets[0].data = counts;
+                    sourceChart.update('none');
+                    return;
+                }
                 
                 sourceChart = new Chart(ctx, {
                     type: 'pie',
@@ -1451,8 +1461,6 @@
                 const ctx = document.getElementById('noisyAgentsChart');
                 if (!ctx) return;
                 
-                if (noisyAgentsChart) noisyAgentsChart.destroy();
-                
                 // Show message if no data
                 if (!data.agents || data.agents.length === 0) {
                     ctx.parentElement.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">No agent data available yet. Start scanning files to see trends.</div>';
@@ -1462,6 +1470,22 @@
                 const colors = [
                     '#ff3b3b', '#39ff14', '#ffd700', '#1e90ff', '#ff1493'
                 ];
+                
+                // Reuse existing chart if it exists
+                if (noisyAgentsChart) {
+                    noisyAgentsChart.data.labels = data.dates;
+                    noisyAgentsChart.data.datasets = data.agents.map((agent, idx) => ({
+                        label: agent.agentId,
+                        data: agent.counts,
+                        borderColor: colors[idx],
+                        backgroundColor: colors[idx] + '20',
+                        tension: 0.4,
+                        borderWidth: 2,
+                        fill: false
+                    }));
+                    noisyAgentsChart.update('none');
+                    return;
+                }
                 
                 noisyAgentsChart = new Chart(ctx, {
                     type: 'line',
@@ -1527,7 +1551,14 @@
                     return;
                 }
                 
-                if (signatureClassChart) signatureClassChart.destroy();
+                // Reuse existing chart if it exists
+                if (signatureClassChart) {
+                    signatureClassChart.data.datasets[0].data = [data.benign.verified, data.suspicious.verified, data.malware.verified];
+                    signatureClassChart.data.datasets[1].data = [data.benign.unknown, data.suspicious.unknown, data.malware.unknown];
+                    signatureClassChart.data.datasets[2].data = [data.benign.untrusted, data.suspicious.untrusted, data.malware.untrusted];
+                    signatureClassChart.update('none');
+                    return;
+                }
                 
                 signatureClassChart = new Chart(ctx, {
                     type: 'bar',
@@ -1611,7 +1642,14 @@
                     return;
                 }
                 
-                if (packerClassChart) packerClassChart.destroy();
+                // Reuse existing chart if it exists
+                if (packerClassChart) {
+                    packerClassChart.data.labels = data.packers;
+                    packerClassChart.data.datasets[0].data = data.benignCounts;
+                    packerClassChart.data.datasets[1].data = data.malwareCounts;
+                    packerClassChart.update('none');
+                    return;
+                }
                 
                 packerClassChart = new Chart(ctx, {
                     type: 'bar',
@@ -1678,7 +1716,13 @@
                     return;
                 }
                 
-                if (confidenceHistChart) confidenceHistChart.destroy();
+                // Reuse existing chart if it exists
+                if (confidenceHistChart) {
+                    confidenceHistChart.data.labels = data.bins;
+                    confidenceHistChart.data.datasets[0].data = data.counts;
+                    confidenceHistChart.update('none');
+                    return;
+                }
                 
                 confidenceHistChart = new Chart(ctx, {
                     type: 'bar',
@@ -1750,8 +1794,6 @@
                     return;
                 }
                 
-                if (entropyBoxChart) entropyBoxChart.destroy();
-                
                 // Create violin/box plot effect with multiple bars
                 const benignData = [
                     data.benign.min,
@@ -1768,6 +1810,14 @@
                     data.malware.q3,
                     data.malware.max
                 ];
+                
+                // Reuse existing chart if it exists
+                if (entropyBoxChart) {
+                    entropyBoxChart.data.datasets[0].data = benignData;
+                    entropyBoxChart.data.datasets[1].data = malwareData;
+                    entropyBoxChart.update('none');
+                    return;
+                }
                 
                 entropyBoxChart = new Chart(ctx, {
                     type: 'bar',
@@ -2274,6 +2324,21 @@
         function loadData() {
             loadStats();
             loadScans();
+            // Heavy components loaded lazily - see switchView()
+        }
+        
+        function loadDataWithoutMap() {
+            loadStats();
+            loadScans();
+        }
+        
+        // Track which analytics have been loaded
+        let analyticsLoaded = false;
+        
+        function loadAnalytics() {
+            if (analyticsLoaded) return; // Only load once
+            
+            console.log('Loading analytics view...');
             loadDailyChart();
             loadMalwareSources();
             loadNoisyAgentsChart();
@@ -2284,23 +2349,11 @@
             loadEmergingThreats();
             loadCorrelationGraph();
             loadGeoMap();
+            
+            analyticsLoaded = true;
         }
         
-        function loadDataWithoutMap() {
-            loadStats();
-            loadScans();
-            loadDailyChart();
-            loadMalwareSources();
-            loadNoisyAgentsChart();
-            loadSignatureClassChart();
-            loadPackerClassChart();
-            loadConfidenceHistChart();
-            loadEntropyBoxChart();
-            loadEmergingThreats();
-            loadCorrelationGraph();
-        }
-        
-        // Initial load
+        // Initial load - only dashboard essentials
         loadData();
         
         // Auto-scroll functionality with visual indicators
@@ -2319,6 +2372,9 @@
         const triggerZone = 80; // pixels from top/bottom
         
         function handleAutoScroll(event) {
+            // Don't auto-scroll if page is hidden
+            if (document.hidden) return;
+            
             const mouseY = event.clientY;
             const windowHeight = window.innerHeight;
             
@@ -2329,6 +2385,10 @@
                 
                 if (!pageScrollInterval) {
                     pageScrollInterval = setInterval(() => {
+                        if (document.hidden) {
+                            stopAutoScroll();
+                            return;
+                        }
                         window.scrollBy({
                             top: -scrollSpeed,
                             behavior: 'auto'
@@ -2343,6 +2403,10 @@
                 
                 if (!pageScrollInterval) {
                     pageScrollInterval = setInterval(() => {
+                        if (document.hidden) {
+                            stopAutoScroll();
+                            return;
+                        }
                         window.scrollBy({
                             top: scrollSpeed,
                             behavior: 'auto'
@@ -2397,6 +2461,9 @@
         
         // Set up Server-Sent Events for real-time updates
         const eventSource = new EventSource('/api/events');
+        let updateDebounceTimer = null;
+        let pollingInterval = null;
+        let pendingUpdates = false;
         
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
@@ -2412,22 +2479,35 @@
                 // Add to threat ticker
                 addToThreatTicker(data.scan);
                 
-                // Reload all data when new scan arrives
-                loadDataWithoutMap();
-                // Update map less frequently (only if it's been more than 10 seconds)
-                if (!window.lastMapUpdate || Date.now() - window.lastMapUpdate > 10000) {
-                    loadGeoMap();
-                    window.lastMapUpdate = Date.now();
-                }
+                // Debounce: batch multiple rapid scans into single update
+                pendingUpdates = true;
+                clearTimeout(updateDebounceTimer);
+                updateDebounceTimer = setTimeout(() => {
+                    if (pendingUpdates) {
+                        // Only reload lightweight data (stats + scan list)
+                        loadStats();
+                        loadScans();
+                        pendingUpdates = false;
+                        
+                        // Throttle map updates to once per 15 seconds
+                        if (!window.lastMapUpdate || Date.now() - window.lastMapUpdate > 15000) {
+                            loadGeoMap();
+                            window.lastMapUpdate = Date.now();
+                        }
+                    }
+                }, 1000); // Wait 1 second after last scan
             }
         };
         
         eventSource.onerror = function(error) {
             console.error('SSE Error:', error);
-            // Fallback: reload data every 30 seconds if SSE connection fails
-            if (eventSource.readyState === EventSource.CLOSED) {
+            // Fallback: reload data every 30 seconds if SSE connection fails (only once!)
+            if (eventSource.readyState === EventSource.CLOSED && !pollingInterval) {
                 console.log('SSE connection closed, falling back to polling...');
-                setInterval(loadDataWithoutMap, 30000);
+                pollingInterval = setInterval(() => {
+                    loadStats();
+                    loadScans();
+                }, 30000);
             }
         };
         

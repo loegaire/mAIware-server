@@ -63,6 +63,7 @@ app.get('/api/events', (req, res) => {
 
     // Add this client to the list
     sseClients.push(res);
+    console.log(`📺 Dashboard connected via SSE (${sseClients.length} total connections)`);
 
     // Remove client on disconnect
     req.on('close', () => {
@@ -70,6 +71,7 @@ app.get('/api/events', (req, res) => {
         if (index !== -1) {
             sseClients.splice(index, 1);
         }
+        console.log(`📺 Dashboard disconnected (${sseClients.length} remaining)`);
     });
 });
 
@@ -129,16 +131,22 @@ app.post('/api/submit-scan', (req, res) => {
             totalScans: (clients.get(clientId)?.totalScans || 0) + 1
         });
         
-        console.log(`✅ Received scan: ${scanEntry.detected_filename} → ${scanEntry.classification}${scanEntry.is_pe ? '' : ' (non-PE)'}`);
+        console.log(`✅ Received scan from ${scanData.agent_id || clientId}: ${scanEntry.detected_filename} → ${scanEntry.classification}${scanEntry.is_pe ? '' : ' (non-PE)'}`);
+        console.log(`   Client IP: ${clientId}, Total scans in DB: ${scanResults.length}`);
         
         // Notify all connected dashboard clients via SSE
         const notification = JSON.stringify({ 
             type: 'new-scan', 
             scan: scanEntry 
         });
-        sseClients.forEach(client => {
-            client.write(`data: ${notification}\n\n`);
-        });
+        if (sseClients.length > 0) {
+            sseClients.forEach(client => {
+                client.write(`data: ${notification}\n\n`);
+            });
+            console.log(`   📡 Broadcasted to ${sseClients.length} dashboard(s)`);
+        } else {
+            console.log(`   ⚠️  No dashboards connected to receive update`);
+        }
         
         res.json({ 
             success: true, 
@@ -1046,10 +1054,12 @@ function startBroadcastResponder() {
 app.listen(PORT, HOST, async () => {
     const localUrl = `http://localhost:${PORT}`;
     const localIPs = getLocalIPs();
-    const networkUrls = localIPs.map(ip => `http://${ip}:${PORT}`).join(', ');
+    const networkUrls = localIPs.length > 0 
+        ? localIPs.map(ip => `http://${ip}:${PORT}`).join(', ')
+        : `http://<your-ip>:${PORT}`;
 
     console.log(`🖥️  mAIware Server Dashboard running on ${localUrl} (listening on ${HOST})`);
-    console.log(`🌐 Network access: ${networkUrls || networkHint}`);
+    console.log(`🌐 Network access: ${networkUrls}`);
     console.log(`📊 Dashboard: ${localUrl}`);
     console.log(`🔌 API endpoint: ${localUrl}/api/submit-scan`);
     

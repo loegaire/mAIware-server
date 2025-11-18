@@ -2336,8 +2336,6 @@
         let analyticsLoaded = false;
         
         function loadAnalytics() {
-            if (analyticsLoaded) return; // Only load once
-            
             console.log('Loading analytics view...');
             loadDailyChart();
             loadMalwareSources();
@@ -2487,6 +2485,12 @@
                         // Only reload lightweight data (stats + scan list)
                         loadStats();
                         loadScans();
+                        
+                        // If analytics view is open, refresh analytics too
+                        if (currentView === 'analytics' && analyticsLoaded) {
+                            loadAnalytics();
+                        }
+                        
                         pendingUpdates = false;
                         
                         // Throttle map updates to once per 15 seconds

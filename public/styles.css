@@ -1070,6 +1070,10 @@ h1 {
     grid-column: span 1;
 }
 
+.analytics-panel.panel-medium {
+    grid-column: span 1;
+}
+
 .analytics-panel.panel-large {
     grid-column: span 2;
 }
@@ -1122,6 +1126,49 @@ h1 {
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+/* Advanced Analytics Grid for Mini Charts */
+.advanced-analytics-grid {
+    background: rgba(15, 15, 15, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(57, 255, 20, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.mini-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.mini-chart-container {
+    background: rgba(10, 10, 10, 0.6);
+    border: 1px solid rgba(57, 255, 20, 0.15);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.mini-chart-container h3 {
+    color: var(--accent-green);
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mini-chart-container h3 i {
+    font-size: 0.9rem;
+}
+
+@media (max-width: 1200px) {
+    .mini-charts-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -1746,8 +1793,15 @@ h1 {
 }
 
 .chart-header h2 {
-    color: #5a9cf8;
+    color: var(--accent-green);
     margin: 0;
+}
+
+.chart-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0.5rem 0 0 0;
+    font-weight: normal;
 }
 
 .chart-controls {

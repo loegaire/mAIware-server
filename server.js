@@ -277,6 +277,184 @@ app.get('/api/malware-sources', (req, res) => {
     }
 });
 
+// API: Noisy Agents Over Time (Graph 2)
+app.get('/api/noisy-agents', (req, res) => {
+    try {
+        // Get top 5 agents by threat count
+        const agentCounts = {};
+        scanResults.forEach(scan => {
+            const agentId = scan.agent_id || 'Unknown';
+            if (scan.classification === 'Suspicious' || scan.classification === 'Malware') {
+                agentCounts[agentId] = (agentCounts[agentId] || 0) + 1;
+            }
+        });
+        
+        const topAgents = Object.entries(agentCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([id]) => id);
+        
+        // Get last 14 days of data
+        const days = 14;
+        const dates = [];
+        const agentData = {};
+        
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            dates.push(`${date.getMonth() + 1}/${date.getDate()}`);
+            
+            topAgents.forEach(agentId => {
+                if (!agentData[agentId]) agentData[agentId] = [];
+                
+                const count = scanResults.filter(scan => {
+                    const scanDate = new Date(scan.timestamp);
+                    return scan.agent_id === agentId &&
+                           scanDate.toDateString() === date.toDateString() &&
+                           (scan.classification === 'Suspicious' || scan.classification === 'Malware');
+                }).length;
+                
+                agentData[agentId].push(count);
+            });
+        }
+        
+        const agents = topAgents.map(agentId => ({
+            agentId,
+            counts: agentData[agentId]
+        }));
+        
+        res.json({ dates, agents });
+    } catch (error) {
+        console.error('Noisy agents error:', error);
+        res.status(500).json({ error: 'Failed to get noisy agents data' });
+    }
+});
+
+// API: Signature Status vs Classification (Graph 3)
+app.get('/api/signature-classification', (req, res) => {
+    try {
+        const data = {
+            benign: { verified: 0, unknown: 0, untrusted: 0 },
+            suspicious: { verified: 0, unknown: 0, untrusted: 0 },
+            malware: { verified: 0, unknown: 0, untrusted: 0 }
+        };
+        
+        scanResults.forEach(scan => {
+            const classification = scan.classification?.toLowerCase() || 'benign';
+            const sigLevel = scan.signature?.level?.toLowerCase() || 'unknown';
+            
+            if (data[classification] && data[classification][sigLevel] !== undefined) {
+                data[classification][sigLevel]++;
+            }
+        });
+        
+        res.json(data);
+    } catch (error) {
+        console.error('Signature classification error:', error);
+        res.status(500).json({ error: 'Failed to get signature classification data' });
+    }
+});
+
+// API: Packer Usage vs Classification (Graph 4)
+app.get('/api/packer-classification', (req, res) => {
+    try {
+        const packerData = {};
+        
+        scanResults.forEach(scan => {
+            const packer = scan.packer_detected || 'None';
+            const classification = scan.classification?.toLowerCase();
+            
+            if (!packerData[packer]) {
+                packerData[packer] = { benign: 0, malware: 0 };
+            }
+            
+            if (classification === 'benign') {
+                packerData[packer].benign++;
+            } else if (classification === 'malware' || classification === 'suspicious') {
+                packerData[packer].malware++;
+            }
+        });
+        
+        // Get top packers
+        const sortedPackers = Object.entries(packerData)
+            .sort((a, b) => (b[1].benign + b[1].malware) - (a[1].benign + a[1].malware))
+            .slice(0, 8);
+        
+        const packers = sortedPackers.map(([name]) => name);
+        const benignCounts = sortedPackers.map(([, counts]) => counts.benign);
+        const malwareCounts = sortedPackers.map(([, counts]) => counts.malware);
+        
+        res.json({ packers, benignCounts, malwareCounts });
+    } catch (error) {
+        console.error('Packer classification error:', error);
+        res.status(500).json({ error: 'Failed to get packer classification data' });
+    }
+});
+
+// API: Confidence Score Distribution (Graph 5)
+app.get('/api/confidence-distribution', (req, res) => {
+    try {
+        const bins = ['0.0-0.1', '0.1-0.2', '0.2-0.3', '0.3-0.4', '0.4-0.5', 
+                      '0.5-0.6', '0.6-0.7', '0.7-0.8', '0.8-0.9', '0.9-1.0'];
+        const counts = new Array(10).fill(0);
+        
+        scanResults.forEach(scan => {
+            const confidence = scan.confidence_score;
+            if (confidence !== undefined && confidence !== null) {
+                const binIndex = Math.min(Math.floor(confidence * 10), 9);
+                counts[binIndex]++;
+            }
+        });
+        
+        res.json({ bins, counts });
+    } catch (error) {
+        console.error('Confidence distribution error:', error);
+        res.status(500).json({ error: 'Failed to get confidence distribution' });
+    }
+});
+
+// API: File Entropy Distribution (Graph 6)
+app.get('/api/entropy-distribution', (req, res) => {
+    try {
+        const benignEntropies = [];
+        const malwareEntropies = [];
+        
+        scanResults.forEach(scan => {
+            const entropy = scan.section_entropy?.entropy;
+            const classification = scan.classification?.toLowerCase();
+            
+            if (entropy !== undefined && entropy !== null) {
+                if (classification === 'benign') {
+                    benignEntropies.push(entropy);
+                } else if (classification === 'malware' || classification === 'suspicious') {
+                    malwareEntropies.push(entropy);
+                }
+            }
+        });
+        
+        const calculateStats = (arr) => {
+            if (arr.length === 0) return { min: 0, q1: 0, median: 0, q3: 0, max: 0 };
+            
+            arr.sort((a, b) => a - b);
+            return {
+                min: arr[0],
+                q1: arr[Math.floor(arr.length * 0.25)],
+                median: arr[Math.floor(arr.length * 0.5)],
+                q3: arr[Math.floor(arr.length * 0.75)],
+                max: arr[arr.length - 1]
+            };
+        };
+        
+        res.json({
+            benign: calculateStats(benignEntropies),
+            malware: calculateStats(malwareEntropies)
+        });
+    } catch (error) {
+        console.error('Entropy distribution error:', error);
+        res.status(500).json({ error: 'Failed to get entropy distribution' });
+    }
+});
+
 // Simple IP to location mapping for demo purposes
 // In production, use MaxMind GeoIP2 or a geolocation API service
 function getLocationFromIP(ip) {

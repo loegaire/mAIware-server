@@ -290,6 +290,59 @@
                     </div>
                 </div>
 
+                <!-- Graph 2: "Noisiest" Agents Over Time -->
+                <div class="chart-container analytics-panel panel-large">
+                    <div class="chart-header">
+                        <h2><i class="fas fa-desktop"></i> "Noisiest" Agents Over Time</h2>
+                        <p class="chart-subtitle">Threat detection trends for top 5 high-risk agents</p>
+                    </div>
+                    <div style="height: 300px;">
+                        <canvas id="noisyAgentsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Advanced Analytics Grid -->
+                <div class="analytics-panel panel-large advanced-analytics-grid">
+                    <div class="chart-header">
+                        <h2><i class="fas fa-chart-area"></i> Advanced Statistical Analysis</h2>
+                        <p class="chart-subtitle">Deep dive into signature verification, packer usage, AI confidence, and entropy patterns</p>
+                    </div>
+                    
+                    <div class="mini-charts-grid">
+                        <!-- Graph 3: Signature Status vs. Classification -->
+                        <div class="mini-chart-container">
+                            <h3><i class="fas fa-certificate"></i> Signature vs. Classification</h3>
+                            <div style="height: 200px;">
+                                <canvas id="signatureClassChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Graph 4: Packer Usage vs. Classification -->
+                        <div class="mini-chart-container">
+                            <h3><i class="fas fa-box"></i> Packer vs. Classification</h3>
+                            <div style="height: 200px;">
+                                <canvas id="packerClassChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Graph 5: Confidence Score Distribution -->
+                        <div class="mini-chart-container">
+                            <h3><i class="fas fa-brain"></i> AI Confidence Distribution</h3>
+                            <div style="height: 200px;">
+                                <canvas id="confidenceHistChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Graph 6: File Entropy Distribution -->
+                        <div class="mini-chart-container">
+                            <h3><i class="fas fa-chart-bar"></i> Entropy Distribution</h3>
+                            <div style="height: 200px;">
+                                <canvas id="entropyBoxChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Threat Vector Correlation Explorer -->
                 <div class="correlation-container analytics-panel panel-large">
                     <div class="correlation-header">
@@ -1358,6 +1411,401 @@
             }
         }
         
+        // Graph 2: "Noisiest" Agents Over Time
+        let noisyAgentsChart = null;
+        async function loadNoisyAgentsChart() {
+            try {
+                const response = await fetch('/api/noisy-agents');
+                const data = await response.json();
+                
+                console.log('Noisy agents data:', data);
+                
+                const ctx = document.getElementById('noisyAgentsChart');
+                if (!ctx) return;
+                
+                if (noisyAgentsChart) noisyAgentsChart.destroy();
+                
+                // Show message if no data
+                if (!data.agents || data.agents.length === 0) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">No agent data available yet. Start scanning files to see trends.</div>';
+                    return;
+                }
+                
+                const colors = [
+                    '#ff3b3b', '#39ff14', '#ffd700', '#1e90ff', '#ff1493'
+                ];
+                
+                noisyAgentsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dates,
+                        datasets: data.agents.map((agent, idx) => ({
+                            label: agent.agentId,
+                            data: agent.counts,
+                            borderColor: colors[idx],
+                            backgroundColor: colors[idx] + '20',
+                            tension: 0.4,
+                            borderWidth: 2,
+                            fill: false
+                        }))
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0', font: { size: 11 } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#e0e0e0'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            },
+                            x: {
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load noisy agents chart:', error);
+                const ctx = document.getElementById('noisyAgentsChart');
+                if (ctx) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--accent-red);">Error loading chart data</div>';
+                }
+            }
+        }
+        
+        // Graph 3: Signature Status vs. Classification
+        let signatureClassChart = null;
+        async function loadSignatureClassChart() {
+            try {
+                const response = await fetch('/api/signature-classification');
+                const data = await response.json();
+                
+                console.log('Signature classification data:', data);
+                
+                const ctx = document.getElementById('signatureClassChart');
+                if (!ctx) {
+                    console.warn('signatureClassChart canvas not found');
+                    return;
+                }
+                
+                if (signatureClassChart) signatureClassChart.destroy();
+                
+                signatureClassChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Benign', 'Suspicious', 'Malware'],
+                        datasets: [
+                            {
+                                label: 'Verified',
+                                data: [data.benign.verified, data.suspicious.verified, data.malware.verified],
+                                backgroundColor: '#39ff14',
+                                stack: 'stack0'
+                            },
+                            {
+                                label: 'Unknown',
+                                data: [data.benign.unknown, data.suspicious.unknown, data.malware.unknown],
+                                backgroundColor: '#ffd700',
+                                stack: 'stack0'
+                            },
+                            {
+                                label: 'Untrusted',
+                                data: [data.benign.untrusted, data.suspicious.untrusted, data.malware.untrusted],
+                                backgroundColor: '#ff3b3b',
+                                stack: 'stack0'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0', font: { size: 11 } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.chart.data.datasets
+                                            .reduce((sum, ds) => sum + ds.data[context.dataIndex], 0);
+                                        const percentage = ((context.parsed.y / total) * 100).toFixed(1);
+                                        return `${context.dataset.label}: ${context.parsed.y} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                stacked: true,
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            },
+                            x: {
+                                stacked: true,
+                                ticks: { color: '#888' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load signature classification chart:', error);
+                const ctx = document.getElementById('signatureClassChart');
+                if (ctx && ctx.parentElement) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No data available</div>';
+                }
+            }
+        }
+        
+        // Graph 4: Packer Usage vs. Classification
+        let packerClassChart = null;
+        async function loadPackerClassChart() {
+            try {
+                const response = await fetch('/api/packer-classification');
+                const data = await response.json();
+                
+                console.log('Packer classification data:', data);
+                
+                const ctx = document.getElementById('packerClassChart');
+                if (!ctx) {
+                    console.warn('packerClassChart canvas not found');
+                    return;
+                }
+                
+                if (packerClassChart) packerClassChart.destroy();
+                
+                packerClassChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.packers,
+                        datasets: [
+                            {
+                                label: 'Benign Files',
+                                data: data.benignCounts,
+                                backgroundColor: '#39ff14'
+                            },
+                            {
+                                label: 'Malware Files',
+                                data: data.malwareCounts,
+                                backgroundColor: '#ff3b3b'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0', font: { size: 11 } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            },
+                            x: {
+                                ticks: { color: '#888' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load packer classification chart:', error);
+                const ctx = document.getElementById('packerClassChart');
+                if (ctx && ctx.parentElement) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No data available</div>';
+                }
+            }
+        }
+        
+        // Graph 5: Confidence Score Histogram
+        let confidenceHistChart = null;
+        async function loadConfidenceHistChart() {
+            try {
+                const response = await fetch('/api/confidence-distribution');
+                const data = await response.json();
+                
+                console.log('Confidence distribution data:', data);
+                
+                const ctx = document.getElementById('confidenceHistChart');
+                if (!ctx) {
+                    console.warn('confidenceHistChart canvas not found');
+                    return;
+                }
+                
+                if (confidenceHistChart) confidenceHistChart.destroy();
+                
+                confidenceHistChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.bins,
+                        datasets: [{
+                            label: 'Scan Count',
+                            data: data.counts,
+                            backgroundColor: '#39ff14',
+                            borderColor: '#2ed60f',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0', font: { size: 11 } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                title: {
+                                    display: true,
+                                    text: 'Number of Scans',
+                                    color: '#888'
+                                }
+                            },
+                            x: {
+                                ticks: { color: '#888' },
+                                grid: { display: false },
+                                title: {
+                                    display: true,
+                                    text: 'Confidence Score Range',
+                                    color: '#888'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load confidence histogram:', error);
+                const ctx = document.getElementById('confidenceHistChart');
+                if (ctx && ctx.parentElement) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No data available</div>';
+                }
+            }
+        }
+        
+        // Graph 6: File Entropy Distribution (Box Plot simulation)
+        let entropyBoxChart = null;
+        async function loadEntropyBoxChart() {
+            try {
+                const response = await fetch('/api/entropy-distribution');
+                const data = await response.json();
+                
+                console.log('Entropy distribution data:', data);
+                
+                const ctx = document.getElementById('entropyBoxChart');
+                if (!ctx) {
+                    console.warn('entropyBoxChart canvas not found');
+                    return;
+                }
+                
+                if (entropyBoxChart) entropyBoxChart.destroy();
+                
+                // Create violin/box plot effect with multiple bars
+                const benignData = [
+                    data.benign.min,
+                    data.benign.q1,
+                    data.benign.median,
+                    data.benign.q3,
+                    data.benign.max
+                ];
+                
+                const malwareData = [
+                    data.malware.min,
+                    data.malware.q1,
+                    data.malware.median,
+                    data.malware.q3,
+                    data.malware.max
+                ];
+                
+                entropyBoxChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Min', 'Q1', 'Median', 'Q3', 'Max'],
+                        datasets: [
+                            {
+                                label: 'Benign Files',
+                                data: benignData,
+                                backgroundColor: '#39ff14',
+                                borderColor: '#2ed60f',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Malware Files',
+                                data: malwareData,
+                                backgroundColor: '#ff3b3b',
+                                borderColor: '#cc2f2f',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0', font: { size: 11 } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(3)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 8.0,
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                title: {
+                                    display: true,
+                                    text: 'Entropy Value',
+                                    color: '#888'
+                                }
+                            },
+                            x: {
+                                ticks: { color: '#888' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load entropy distribution chart:', error);
+                const ctx = document.getElementById('entropyBoxChart');
+                if (ctx && ctx.parentElement) {
+                    ctx.parentElement.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No data available</div>';
+                }
+            }
+        }
+        
         async function loadEmergingThreats() {
             try {
                 const response = await fetch('/api/emerging-threats');
@@ -1800,6 +2248,11 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadNoisyAgentsChart();
+            loadSignatureClassChart();
+            loadPackerClassChart();
+            loadConfidenceHistChart();
+            loadEntropyBoxChart();
             loadEmergingThreats();
             loadCorrelationGraph();
             loadGeoMap();
@@ -1810,6 +2263,11 @@
             loadScans();
             loadDailyChart();
             loadMalwareSources();
+            loadNoisyAgentsChart();
+            loadSignatureClassChart();
+            loadPackerClassChart();
+            loadConfidenceHistChart();
+            loadEntropyBoxChart();
             loadEmergingThreats();
             loadCorrelationGraph();
         }

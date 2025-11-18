@@ -712,6 +712,81 @@ body > * {
     font-size: 1.2rem;
 }
 
+/* Auto-scroll indicators */
+.scroll-indicator {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 60px;
+    background: rgba(57, 255, 20, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(57, 255, 20, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 10001;
+}
+
+.scroll-indicator.visible {
+    opacity: 1;
+    animation: scroll-pulse 1.5s ease-in-out infinite;
+}
+
+.scroll-indicator.scroll-up {
+    top: 20px;
+}
+
+.scroll-indicator.scroll-down {
+    bottom: 20px;
+}
+
+.scroll-indicator i {
+    font-size: 1.5rem;
+    color: var(--accent-green);
+    animation: scroll-bounce 1s ease-in-out infinite;
+}
+
+.scroll-up i {
+    animation-name: scroll-bounce-up;
+}
+
+.scroll-down i {
+    animation-name: scroll-bounce-down;
+}
+
+@keyframes scroll-pulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(57, 255, 20, 0.6);
+    }
+}
+
+@keyframes scroll-bounce-up {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes scroll-bounce-down {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(5px);
+    }
+}
+
 /* Threat Ticker */
 .threat-ticker-container {
     background: var(--bg-secondary);

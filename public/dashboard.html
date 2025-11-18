@@ -2303,6 +2303,98 @@
         // Initial load
         loadData();
         
+        // Auto-scroll functionality with visual indicators
+        const scrollIndicatorUp = document.createElement('div');
+        scrollIndicatorUp.className = 'scroll-indicator scroll-up';
+        scrollIndicatorUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        document.body.appendChild(scrollIndicatorUp);
+        
+        const scrollIndicatorDown = document.createElement('div');
+        scrollIndicatorDown.className = 'scroll-indicator scroll-down';
+        scrollIndicatorDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        document.body.appendChild(scrollIndicatorDown);
+        
+        let pageScrollInterval = null;
+        const scrollSpeed = 3;
+        const triggerZone = 80; // pixels from top/bottom
+        
+        function handleAutoScroll(event) {
+            const mouseY = event.clientY;
+            const windowHeight = window.innerHeight;
+            
+            // Check if near top
+            if (mouseY < triggerZone) {
+                scrollIndicatorUp.classList.add('visible');
+                scrollIndicatorDown.classList.remove('visible');
+                
+                if (!pageScrollInterval) {
+                    pageScrollInterval = setInterval(() => {
+                        window.scrollBy({
+                            top: -scrollSpeed,
+                            behavior: 'auto'
+                        });
+                    }, 16); // ~60fps
+                }
+            }
+            // Check if near bottom
+            else if (mouseY > windowHeight - triggerZone) {
+                scrollIndicatorDown.classList.add('visible');
+                scrollIndicatorUp.classList.remove('visible');
+                
+                if (!pageScrollInterval) {
+                    pageScrollInterval = setInterval(() => {
+                        window.scrollBy({
+                            top: scrollSpeed,
+                            behavior: 'auto'
+                        });
+                    }, 16);
+                }
+            }
+            // In neutral zone
+            else {
+                scrollIndicatorUp.classList.remove('visible');
+                scrollIndicatorDown.classList.remove('visible');
+                
+                if (pageScrollInterval) {
+                    clearInterval(pageScrollInterval);
+                    pageScrollInterval = null;
+                }
+            }
+        }
+        
+        function stopAutoScroll() {
+            scrollIndicatorUp.classList.remove('visible');
+            scrollIndicatorDown.classList.remove('visible');
+            
+            if (pageScrollInterval) {
+                clearInterval(pageScrollInterval);
+                pageScrollInterval = null;
+            }
+        }
+        
+        // Attach event listeners
+        document.addEventListener('mousemove', handleAutoScroll);
+        document.addEventListener('mouseleave', stopAutoScroll);
+        
+        // Stop scrolling when reaching top or bottom
+        let lastScrollTop = 0;
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            
+            // At top
+            if (scrollTop === 0 && lastScrollTop > 0) {
+                stopAutoScroll();
+            }
+            // At bottom
+            if (scrollTop + clientHeight >= scrollHeight - 5) {
+                stopAutoScroll();
+            }
+            
+            lastScrollTop = scrollTop;
+        });
+        
         // Set up Server-Sent Events for real-time updates
         const eventSource = new EventSource('/api/events');
         

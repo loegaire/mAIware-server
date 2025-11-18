@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const dgram = require('dgram');
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+const BROADCAST_PORT = 3001;
+const DISCOVERY_MESSAGE = 'MAIWARE_SERVER_DISCOVERY';
 
 // Middleware
 app.use(cors());
@@ -18,12 +22,31 @@ const sseClients = []; // Track SSE connections for dashboard updates
 
 // --- API Endpoints ---
 
+// Get server's local IP addresses
+function getLocalIPs() {
+    const interfaces = os.networkInterfaces();
+    const ips = [];
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                ips.push(iface.address);
+            }
+        }
+    }
+    return ips;
+}
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok', 
+        service: 'mAIware-server',
+        version: '1.0.0',
         totalScans: scanResults.length,
         activeClients: clients.size,
+        localIPs: getLocalIPs(),
+        hostname: os.hostname(),
+        port: PORT,
         timestamp: new Date().toISOString() 
     });
 });
@@ -990,15 +1013,48 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
+// UDP broadcast responder for automatic server discovery
+function startBroadcastResponder() {
+    const udpServer = dgram.createSocket('udp4');
+    
+    udpServer.on('message', (msg, rinfo) => {
+        if (msg.toString() === DISCOVERY_MESSAGE) {
+            const localIPs = getLocalIPs();
+            const response = JSON.stringify({
+                service: 'mAIware-server',
+                port: PORT,
+                ips: localIPs,
+                hostname: os.hostname()
+            });
+            udpServer.send(response, rinfo.port, rinfo.address);
+        }
+    });
+    
+    udpServer.on('error', (err) => {
+        console.log(`⚠️  UDP broadcast responder error: ${err.message}`);
+        udpServer.close();
+    });
+    
+    udpServer.bind(BROADCAST_PORT, () => {
+        console.log(`📡 UDP discovery responder listening on port ${BROADCAST_PORT}`);
+    });
+    
+    return udpServer;
+}
+
 // Start server
 app.listen(PORT, HOST, async () => {
     const localUrl = `http://localhost:${PORT}`;
-    const networkHint = HOST === '0.0.0.0' ? `http://<your-ip>:${PORT}` : `http://${HOST}:${PORT}`;
+    const localIPs = getLocalIPs();
+    const networkUrls = localIPs.map(ip => `http://${ip}:${PORT}`).join(', ');
 
     console.log(`🖥️  mAIware Server Dashboard running on ${localUrl} (listening on ${HOST})`);
-    console.log(`🌐 Remote clients can post to: ${networkHint}/api/submit-scan`);
+    console.log(`🌐 Network access: ${networkUrls || networkHint}`);
     console.log(`📊 Dashboard: ${localUrl}`);
     console.log(`🔌 API endpoint: ${localUrl}/api/submit-scan`);
+    
+    // Start UDP broadcast responder for client discovery
+    startBroadcastResponder();
     
     // Auto-open browser (using dynamic import for ES module)
     try {

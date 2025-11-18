@@ -4,6 +4,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Middleware
 app.use(cors());
@@ -990,15 +991,19 @@ app.get('/', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
-    console.log(`🖥️  mAIware Server Dashboard running on http://localhost:${PORT}`);
-    console.log(`📊 Dashboard: http://localhost:${PORT}`);
-    console.log(`🔌 API endpoint: http://localhost:${PORT}/api/submit-scan`);
+app.listen(PORT, HOST, async () => {
+    const localUrl = `http://localhost:${PORT}`;
+    const networkHint = HOST === '0.0.0.0' ? `http://<your-ip>:${PORT}` : `http://${HOST}:${PORT}`;
+
+    console.log(`🖥️  mAIware Server Dashboard running on ${localUrl} (listening on ${HOST})`);
+    console.log(`🌐 Remote clients can post to: ${networkHint}/api/submit-scan`);
+    console.log(`📊 Dashboard: ${localUrl}`);
+    console.log(`🔌 API endpoint: ${localUrl}/api/submit-scan`);
     
     // Auto-open browser (using dynamic import for ES module)
     try {
         const open = (await import('open')).default;
-        await open(`http://localhost:${PORT}`);
+        await open(localUrl);
     } catch (err) {
         console.log('Could not auto-open browser. Please open manually.');
     }

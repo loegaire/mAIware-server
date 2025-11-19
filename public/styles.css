@@ -5,8 +5,8 @@
     --bg-hover: #151515;
     --text-primary: #e8f0e8;
     --text-secondary: #9ca3af;
-    --accent-green: #39ff14;
-    --accent-green-dim: #2ed60f;
+    --accent-green: #20be65;
+    --accent-green-dim: #3ea874;
     --accent-yellow: #ffd700;
     --accent-red: #ff3b3b;
     --accent-red-dim: #cc2f2f;
@@ -27,8 +27,8 @@
     --bg-hover: #e8f5e8;
     --text-primary: #1a1f2e;
     --text-secondary: #4a5568;
-    --accent-green: #2ed60f;
-    --accent-green-dim: #27b00c;
+    --accent-green: #20be65;
+    --accent-green-dim: #3ea874;
     --accent-yellow: #cc9a00;
     --accent-red: #dc2626;
     --accent-red-dim: #b91c1c;
@@ -61,15 +61,13 @@ body {
 body::before {
     content: '';
     position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(57, 255, 20, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(57, 255, 20, 0.06) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(57, 255, 20, 0.05) 0%, transparent 50%);
-    animation: backgroundGlow 15s ease-in-out infinite;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('https://img6.thuthuatphanmem.vn/uploads/2022/02/12/background-thoi-su-3d-dep_095011550.jpg') no-repeat center center;
+    background-size: cover;
+    opacity: 0.15;
     pointer-events: none;
     z-index: 0;
 }
@@ -1440,7 +1438,7 @@ h1 {
 
 .eti-details {
     margin-top: 6px;
-    color: #999;
+    color: #5a92e1;
     font-size: 0.75rem;
     font-style: italic;
     overflow: hidden;
@@ -1786,11 +1784,11 @@ h1 {
 }
 
 .scans-header h2 {
-    color: #5a9cf8;
+    color: #2bcfae;
 }
 
 .refresh-btn {
-    background: #5a9cf8;
+    background: #2bcfae;
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -1801,7 +1799,7 @@ h1 {
 }
 
 .refresh-btn:hover {
-    background: #4a8ce8;
+    background: #1db084;
 }
 
 .scans-table {
@@ -1813,7 +1811,7 @@ h1 {
     text-align: left;
     padding: 1rem;
     background: rgba(255, 255, 255, 0.05);
-    color: #5a9cf8;
+    color: #2bcfae;
     font-weight: 600;
 }
 
@@ -1836,7 +1834,7 @@ h1 {
 
 .badge.malware { background: #ff4757; color: white; }
 .badge.suspicious { background: #ffa502; color: white; }
-.badge.benign { background: #26de81; color: white; }
+.badge.benign { background: #34d118; color: white; }
 .badge.non-pe { background: #4b5563; color: #fff; }
 
 .hash {
@@ -1907,9 +1905,9 @@ h1 {
 }
 
 .chart-btn.active {
-    background: #5a9cf8;
+    background: #2bcfae;
     color: white;
-    border-color: #5a9cf8;
+    border-color: #2bcfae;
 }
 
 #dailyScansChart {
@@ -2472,17 +2470,13 @@ h1 {
     color: #6b7280;
 }
 
-[data-theme="light"] .eti-details {
-    color: #9ca3af;
-}
-
 [data-theme="light"] .eti-name {
     color: #1f2937;
 }
 
 /* Fix 11: Make ETI details much more visible in light theme */
 [data-theme="light"] .eti-details {
-    color: #5a9cf8;
+    color: #437ed1;
     font-weight: 500;
 }
 

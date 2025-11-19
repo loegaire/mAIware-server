@@ -911,8 +911,8 @@
                             {
                                 label: 'Benign',
                                 data: data.days.map(d => d.benign),
-                                borderColor: '#26de81',
-                                backgroundColor: 'rgba(38, 222, 129, 0.1)',
+                                borderColor: '#34d118',
+                                backgroundColor: 'rgba(52, 209, 24, 0.1)',
                                 fill: true,
                                 tension: 0.4,
                                 borderWidth: 2
@@ -1109,7 +1109,7 @@
                         <div style="margin-top: 10px;">
                             <div><span style="color: #ff3b3b;">●</span> Malware: ${location.malwareCount}</div>
                             <div><span style="color: #ffd700;">●</span> Suspicious: ${location.suspiciousCount}</div>
-                            <div><span style="color: #39ff14;">●</span> Benign: ${location.benignCount}</div>
+                            <div><span style="color: #34d118;">●</span> Benign: ${location.benignCount}</div>
                         </div>
                         <button onclick="filterByLocation('${country}')" 
                                 style="margin-top: 10px; padding: 5px 10px; background: var(--accent-green); 
@@ -1155,7 +1155,7 @@
                 maxZoom: 10,
                 max: 1.0,
                 gradient: {
-                    0.0: '#39ff14',  // Green (low threat)
+                    0.0: '#34d118',  // Green (low threat)
                     0.3: '#ffd700',  // Yellow
                     0.6: '#ffa502',  // Orange
                     0.8: '#ff6348',  // Red
@@ -1192,7 +1192,7 @@
                     
                     // Color gradient from green to red
                     let color;
-                    if (threatScore < 0.2) color = '#39ff14';
+                    if (threatScore < 0.2) color = '#34d118';
                     else if (threatScore < 0.4) color = '#ffd700';
                     else if (threatScore < 0.6) color = '#ffa502';
                     else if (threatScore < 0.8) color = '#ff6348';
@@ -1303,7 +1303,7 @@
                 const { lat, lng, city, country } = location.location;
                 
                 let markerColor = location.malwareCount > 0 ? '#ff3b3b' : 
-                                 location.suspiciousCount > 0 ? '#ffd700' : '#39ff14';
+                                 location.suspiciousCount > 0 ? '#ffd700' : '#34d118';
                 
                 // Animated marker appearance
                 const marker = L.circleMarker([lat, lng], {
@@ -1468,7 +1468,7 @@
                 }
                 
                 const colors = [
-                    '#ff3b3b', '#39ff14', '#ffd700', '#1e90ff', '#ff1493'
+                    '#ff3b3b', '#34d118', '#ffd700', '#1e90ff', '#ff1493'
                 ];
                 
                 // Reuse existing chart if it exists
@@ -1571,7 +1571,7 @@
                             {
                                 label: 'Verified',
                                 data: [data.benign.verified, data.suspicious.verified, data.malware.verified],
-                                backgroundColor: '#39ff14',
+                                backgroundColor: '#34d118',
                                 stack: 'stack0'
                             },
                             {
@@ -1662,7 +1662,7 @@
                             {
                                 label: 'Benign Files',
                                 data: data.benignCounts,
-                                backgroundColor: '#39ff14'
+                                backgroundColor: '#34d118'
                             },
                             {
                                 label: 'Malware Files',
@@ -1734,8 +1734,8 @@
                         datasets: [{
                             label: 'Scan Count',
                             data: data.counts,
-                            backgroundColor: '#39ff14',
-                            borderColor: '#2ed60f',
+                            backgroundColor: '#5a9cf8',
+                            borderColor: '#4a8ce8',
                             borderWidth: 1
                         }]
                     },
@@ -1830,7 +1830,7 @@
                             {
                                 label: 'Benign Files',
                                 data: benignData,
-                                backgroundColor: '#39ff14',
+                                backgroundColor: '#34d118',
                                 borderColor: '#2ed60f',
                                 borderWidth: 1
                             },

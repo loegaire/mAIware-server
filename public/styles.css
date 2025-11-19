@@ -61,13 +61,15 @@ body {
 body::before {
     content: '';
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: url('https://img6.thuthuatphanmem.vn/uploads/2022/02/12/background-thoi-su-3d-dep_095011550.jpg') no-repeat center center;
-    background-size: cover;
-    opacity: 0.15;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(57, 255, 20, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(57, 255, 20, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(57, 255, 20, 0.05) 0%, transparent 50%);
+    animation: backgroundGlow 15s ease-in-out infinite;
     pointer-events: none;
     z-index: 0;
 }

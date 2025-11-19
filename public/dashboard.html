@@ -2376,6 +2376,13 @@
             // Don't auto-scroll if page is hidden
             if (document.hidden) return;
             
+            // Don't auto-scroll if hovering over back-to-top button
+            const backToTopBtn = document.getElementById('backToTop');
+            if (backToTopBtn && backToTopBtn.matches(':hover')) {
+                stopAutoScroll();
+                return;
+            }
+            
             const mouseY = event.clientY;
             const windowHeight = window.innerHeight;
             

@@ -1094,7 +1094,10 @@ h1 {
 }
 
 .stat-card.benign i,
-.stat-card.benign .stat-number,
+.stat-card.benign .stat-number {
+    color: #34d118;
+}
+
 .stat-card.info i,
 .stat-card.info .stat-number {
     color: var(--accent-green);

@@ -51,6 +51,20 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Get LAN users count (active clients for client app)
+app.get('/api/lan-users', (req, res) => {
+    const now = Date.now();
+    const activeUsers = Array.from(clients.values()).filter(c => 
+        new Date(c.lastSeen).getTime() > now - 10 * 60 * 1000
+    ).length;
+    
+    res.json({ 
+        lanUsers: activeUsers,
+        totalClients: clients.size,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // SSE endpoint for real-time dashboard updates
 app.get('/api/events', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -216,7 +230,9 @@ app.get('/api/stats', (req, res) => {
         suspiciousCount,
         benignCount,
         activeClients,
-        clients: clients.size
+        clients: clients.size,
+        activeUsers: 10, // Mock value for active users
+        siteVisits: scanResults.length // All-time site visits based on total scans
     });
 });
 

@@ -173,6 +173,12 @@
                     <span class="stat-label">Benign</span>
                     <div class="stat-glow"></div>
                 </div>
+                <div class="stat-card info">
+                    <i class="fas fa-eye"></i>
+                    <span class="stat-number" id="stat-site-visits">0</span>
+                    <span class="stat-label">Site Visits (All-time)</span>
+                    <div class="stat-glow"></div>
+                </div>
             </div>
             
             <!-- Recent Scans -->
@@ -804,6 +810,7 @@
                 animateStatCard('stat-malware', stats.malwareCount);
                 animateStatCard('stat-suspicious', stats.suspiciousCount);
                 animateStatCard('stat-benign', stats.benignCount);
+                animateStatCard('stat-site-visits', stats.siteVisits || stats.totalScans);
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }

@@ -19,6 +19,7 @@ app.use(express.static('public'));
 const scanResults = [];
 const clients = new Map(); // Track active clients
 const sseClients = []; // Track SSE connections for dashboard updates
+const ACTIVE_CLIENT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 // --- API Endpoints ---
 
@@ -34,6 +35,91 @@ function getLocalIPs() {
         }
     }
     return ips;
+}
+
+function getActiveClientCount() {
+    const now = Date.now();
+    return Array.from(clients.values()).filter(c =>
+        new Date(c.lastSeen).getTime() > now - ACTIVE_CLIENT_WINDOW_MS
+    ).length;
+}
+
+function touchClient(clientId, extra = {}) {
+    if (!clientId) {
+        return null;
+    }
+
+    const prev = clients.get(clientId) || {};
+    const updated = {
+        ...prev,
+        ...extra,
+        lastSeen: new Date().toISOString(),
+    };
+
+    // Preserve/increment total scans if provided
+    if (extra.incrementScan) {
+        updated.totalScans = (prev.totalScans || 0) + 1;
+    } else if (prev.totalScans && !updated.totalScans) {
+        updated.totalScans = prev.totalScans;
+    }
+
+    clients.set(clientId, updated);
+    return updated;
+}
+
+function broadcastClientUpdate(reason = 'heartbeat') {
+    const payload = JSON.stringify({
+        type: 'client-update',
+        reason,
+        activeClients: getActiveClientCount(),
+        totalClients: clients.size,
+        timestamp: new Date().toISOString()
+    });
+
+    sseClients.forEach((client) => {
+        client.write(`data: ${payload}\n\n`);
+    });
+}
+
+function getStatsSnapshot() {
+    const now = Date.now();
+    const last24h = now - 24 * 60 * 60 * 1000;
+    const last7d = now - 7 * 24 * 60 * 60 * 1000;
+
+    const recent24h = scanResults.filter(s =>
+        new Date(s.serverTimestamp).getTime() > last24h
+    );
+
+    const recent7d = scanResults.filter(s =>
+        new Date(s.serverTimestamp).getTime() > last7d
+    );
+
+    const malwareCount = scanResults.filter(s =>
+        s.classification === 'Malware'
+    ).length;
+
+    const suspiciousCount = scanResults.filter(s =>
+        s.classification === 'Suspicious'
+    ).length;
+
+    const benignCount = scanResults.filter(s =>
+        s.classification === 'Benign'
+    ).length;
+
+    const activeClients = getActiveClientCount();
+
+    return {
+        totalScans: scanResults.length,
+        scans24h: recent24h.length,
+        scans7d: recent7d.length,
+        malwareCount,
+        suspiciousCount,
+        benignCount,
+        activeClients,
+        clients: clients.size,
+        activeUsers: activeClients,
+        siteVisits: scanResults.length // All-time site visits based on total scans
+    };
 }
 
 // Health check
@@ -53,10 +139,7 @@ app.get('/api/health', (req, res) => {
 
 // Get LAN users count (active clients for client app)
 app.get('/api/lan-users', (req, res) => {
-    const now = Date.now();
-    const activeUsers = Array.from(clients.values()).filter(c => 
-        new Date(c.lastSeen).getTime() > now - 10 * 60 * 1000
-    ).length;
+    const activeUsers = getActiveClientCount();
     
     res.json({ 
         lanUsers: activeUsers,
@@ -74,6 +157,8 @@ app.get('/api/events', (req, res) => {
 
     // Send initial connection message
     res.write('data: {"type":"connected"}\n\n');
+    // Send current stats snapshot so dashboard shows accurate counts immediately
+    res.write(`data: ${JSON.stringify({ type: 'stats', stats: getStatsSnapshot() })}\n\n`);
 
     // Add this client to the list
     sseClients.push(res);
@@ -140,9 +225,10 @@ app.post('/api/submit-scan', (req, res) => {
         
         // Update client tracking
         const clientId = scanData.systemInfo?.ip || req.ip;
-        clients.set(clientId, {
-            lastSeen: new Date().toISOString(),
-            totalScans: (clients.get(clientId)?.totalScans || 0) + 1
+        touchClient(clientId, {
+            incrementScan: true,
+            agentId: scanData.agent_id,
+            hostname: scanData.systemInfo?.hostname || scanData.systemInfo?.agent_hostname
         });
         
         console.log(`✅ Received scan from ${scanData.agent_id || clientId}: ${scanEntry.detected_filename} → ${scanEntry.classification}${scanEntry.is_pe ? '' : ' (non-PE)'}`);
@@ -165,6 +251,8 @@ app.post('/api/submit-scan', (req, res) => {
         } else {
             console.log(`   ⚠️  No dashboards connected to receive update`);
         }
+        // Notify dashboards about client activity immediately
+        broadcastClientUpdate('scan');
         
         res.json({ 
             success: true, 
@@ -218,9 +306,7 @@ app.get('/api/stats', (req, res) => {
     ).length;
     
     // Count active clients (seen in last 10 minutes)
-    const activeClients = Array.from(clients.values()).filter(c => 
-        new Date(c.lastSeen).getTime() > now - 10 * 60 * 1000
-    ).length;
+    const activeClients = getActiveClientCount();
     
     res.json({
         totalScans: scanResults.length,
@@ -231,9 +317,35 @@ app.get('/api/stats', (req, res) => {
         benignCount,
         activeClients,
         clients: clients.size,
-        activeUsers: 10, // Mock value for active users
+        activeUsers: activeClients,
         siteVisits: scanResults.length // All-time site visits based on total scans
     });
+});
+
+// Heartbeat endpoint for clients to announce presence (used by client app)
+app.post('/api/clients/heartbeat', (req, res) => {
+    try {
+        const payload = req.body || {};
+        const clientId = payload.systemInfo?.ip || payload.ip || req.ip;
+        const agentId = payload.agent_id || payload.agentId || clientId;
+
+        const updated = touchClient(clientId, {
+            agentId,
+            hostname: payload.systemInfo?.hostname || payload.systemInfo?.agent_hostname
+        });
+
+        broadcastClientUpdate('heartbeat');
+
+        res.json({
+            success: true,
+            activeClients: getActiveClientCount(),
+            totalClients: clients.size,
+            client: updated
+        });
+    } catch (err) {
+        console.error('Heartbeat error:', err);
+        res.status(500).json({ error: 'Failed to record heartbeat' });
+    }
 });
 
 // NEW: Get daily analysis data for chart
@@ -1125,11 +1237,13 @@ app.listen(PORT, HOST, async () => {
     startBroadcastResponder();
     
     // Auto-open browser (using dynamic import for ES module)
-    try {
-        const open = (await import('open')).default;
-        await open(localUrl);
-    } catch (err) {
-        console.log('Could not auto-open browser. Please open manually.');
+    if (!process.env.MAIWARE_NO_BROWSER) {
+        try {
+            const open = (await import('open')).default;
+            await open(localUrl);
+        } catch (err) {
+            console.log('Could not auto-open browser. Please open manually.');
+        }
     }
 });
 

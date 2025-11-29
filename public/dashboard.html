@@ -799,18 +799,23 @@
                 element.textContent = newValue;
             }
         }
+
+        function renderStats(stats) {
+            if (!stats) return;
+
+            animateStatCard('stat-clients', stats.activeClients);
+            animateStatCard('stat-total', stats.totalScans);
+            animateStatCard('stat-malware', stats.malwareCount);
+            animateStatCard('stat-suspicious', stats.suspiciousCount);
+            animateStatCard('stat-benign', stats.benignCount);
+            animateStatCard('stat-site-visits', stats.siteVisits || stats.totalScans);
+        }
         
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');
                 const stats = await response.json();
-                
-                animateStatCard('stat-clients', stats.activeClients);
-                animateStatCard('stat-total', stats.totalScans);
-                animateStatCard('stat-malware', stats.malwareCount);
-                animateStatCard('stat-suspicious', stats.suspiciousCount);
-                animateStatCard('stat-benign', stats.benignCount);
-                animateStatCard('stat-site-visits', stats.siteVisits || stats.totalScans);
+                renderStats(stats);
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }
@@ -2485,6 +2490,12 @@
             
             if (data.type === 'connected') {
                 console.log('Connected to server for real-time updates');
+            } else if (data.type === 'stats' && data.stats) {
+                renderStats(data.stats);
+            } else if (data.type === 'client-update') {
+                if (typeof data.activeClients === 'number') {
+                    animateStatCard('stat-clients', data.activeClients);
+                }
             } else if (data.type === 'new-scan') {
                 console.log('New scan received:', data.scan.detected_filename);
                 

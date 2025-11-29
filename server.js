@@ -608,10 +608,25 @@ app.get('/api/entropy-distribution', (req, res) => {
         const malwareEntropies = [];
         
         scanResults.forEach(scan => {
-            const entropy = scan.section_entropy?.entropy;
+            // Try multiple sources for entropy data:
+            // 1. pe_metadata.entropy_total (from AI analysis)
+            // 2. Calculate average from key_findings.section_entropy array
+            let entropy = null;
+            
+            if (scan.pe_metadata?.entropy_total !== undefined) {
+                entropy = scan.pe_metadata.entropy_total;
+            } else if (scan.key_findings?.section_entropy && Array.isArray(scan.key_findings.section_entropy)) {
+                // Calculate average entropy from section data
+                const sections = scan.key_findings.section_entropy;
+                if (sections.length > 0) {
+                    const totalEntropy = sections.reduce((sum, s) => sum + (s.entropy || 0), 0);
+                    entropy = totalEntropy / sections.length;
+                }
+            }
+            
             const classification = scan.classification?.toLowerCase();
             
-            if (entropy !== undefined && entropy !== null) {
+            if (entropy !== null && entropy !== undefined) {
                 if (classification === 'benign') {
                     benignEntropies.push(entropy);
                 } else if (classification === 'malware' || classification === 'suspicious') {
